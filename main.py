@@ -42,11 +42,11 @@ class TripCrew:
             self.cities,
             self.date_range,
             self.interests
-        )
+        )  
 
         # Define your custom crew here
         crew = Crew(
-            agents=[expert_travel_agent, local_tour_guide, city_selection_expert],
+            agents=[expert_travel_agent,city_selection_expert, local_tour_guide ],
             tasks=[plan_itinerary, identify_city, gather_city_info],
             verbose=True,
         )

@@ -1,4 +1,4 @@
-from langchain.tools import tool
+from crewai.tools import tool
 
 class CalculatorTool:
     @staticmethod

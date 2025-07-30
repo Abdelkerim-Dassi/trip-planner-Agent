@@ -19,10 +19,10 @@ class TravelAgents():
         goal='Select the best city based on weather, season, and prices',
         backstory=
         'An expert in analyzing travel data to pick ideal destinations',
-        tools=[
-            SearchTools.search_internet,
-            CalculatorTool.calculate
-            ],
+        tools=[SearchTools.search_internet,CalculatorTool.calculate],
+        llm=ChatOpenAI(
+          model='o1-mini',
+          temperature=0.2),
         verbose=True)
 
   def local_expert(self):
