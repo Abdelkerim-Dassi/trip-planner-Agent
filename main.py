@@ -67,6 +67,6 @@ if __name__ == "__main__":
     Travel_crew = TripCrew(origin, destination, travel_dates, interests)
     result = Travel_crew.run()
     print("\n\n########################")
-    print("## Here is you custom crew run result:")
+    print("## Here is you Trip plann:")
     print("########################\n")
     print(result)

@@ -1,6 +1,7 @@
 from langchain.tools import tool
 
 class CalculatorTool:
+    @staticmethod
     @tool("Make a calculation")
     def calculate(self,operation: str) -> str:
         """
