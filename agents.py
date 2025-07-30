@@ -1,12 +1,17 @@
 from crewai import Agent
-from langchain.llms import OpenAI
+from langchain_openai import ChatOpenAI
 
-from tools.browser_tools import BrowserTools
-from tools.calculator_tools import CalculatorTools
+
 from tools.search_tools import SearchTools
+from tools.calculator_tools import CalculatorTool
 
 
-class TripAgents():
+from dotenv import load_dotenv
+import os 
+load_dotenv()
+
+
+class TravelAgents():
 
   def city_selection_agent(self):
     return Agent(
@@ -16,8 +21,8 @@ class TripAgents():
         'An expert in analyzing travel data to pick ideal destinations',
         tools=[
             SearchTools.search_internet,
-            BrowserTools.scrape_and_summarize_website,
-        ],
+            CalculatorTool.calculate
+            ],
         verbose=True)
 
   def local_expert(self):
@@ -27,9 +32,8 @@ class TripAgents():
         backstory="""A knowledgeable local guide with extensive information
         about the city, it's attractions and customs""",
         tools=[
-            SearchTools.search_internet,
-            BrowserTools.scrape_and_summarize_website,
-        ],
+            SearchTools.search_internet
+            ],
         verbose=True)
 
   def travel_concierge(self):
@@ -41,7 +45,6 @@ class TripAgents():
         decades of experience""",
         tools=[
             SearchTools.search_internet,
-            BrowserTools.scrape_and_summarize_website,
-            CalculatorTools.calculate,
+            CalculatorTool.calculate,
         ],
         verbose=True)

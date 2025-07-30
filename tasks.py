@@ -3,7 +3,7 @@ from crewai import Task
 from textwrap import dedent
 
 
-class CustomTasks:
+class TravelTasks:
     def __tip_section(self):
         return "If you do your BEST WORK, I'll give you a $10,000 commission!"
 
@@ -51,28 +51,24 @@ class CustomTasks:
         """
             ),
             expected_output="Detailed report on the chosen city including flight costs, weather forecast, and attractions",
-            agent=agent,
+            agent=agent
         )
-
-
-def gather_city_info(self, agent,city, travel_date, interests):
+    
+    def gather_city_info(self, agent,city, travel_date, interests):
         return Task(
             description=dedent(
                 f"""
-            ***Task**: Gather In-Depth City Information.
-            **Description**: Compile an in-depth guide for the selected city, focusing on key attractions, local customs, special events, and daily activity recommendations.
-            The guide should provide a thorough overview of what the city has to offer, including hidden gems, cultural hotspots, must-visit landmarks, weather forecasts, and high-level costs.
-            This guide should be tailored to enhance the travel experience, providing practical tips and cultural insights.
-            This guide should be know the must-visit landmarks, hidden gems, cultural hotspots, and practical travel tips.
-            The final answer must be a comprehensive city guide.
-            **Parameters**:
-            - Cities: {city}
-            - Travel Date: {travel_date}
-            - Interests: {interests} 
-
-           **Note**:{self.__tip_section()}
-
-        """
-            ),
+                ***Task**: Gather In-Depth City Information.
+                **Description**: Compile an in-depth guide for the selected city, focusing on key attractions, local customs, special events, and daily activity recommendations.
+                The guide should provide a thorough overview of what the city has to offer, including hidden gems, cultural hotspots, must-visit landmarks, weather forecasts, and high-level costs.
+                This guide should be tailored to enhance the travel experience, providing practical tips and cultural insights.
+                This guide should be know the must-visit landmarks, hidden gems, cultural hotspots, and practical travel tips.
+                The final answer must be a comprehensive city guide.
+                **Parameters**:
+                - Cities: {city}
+                - Travel Date: {travel_date}
+                - Interests: {interests} 
+                **Note**:{self.__tip_section()} """),
+            expected_output="A detailed city guide including attractions, local customs, events, and daily activities",
             agent=agent
-        )
+            )
