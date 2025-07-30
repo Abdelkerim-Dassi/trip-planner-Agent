@@ -1,29 +1,37 @@
-## agents.py
-This file contains the definition of custom agents.
-To create a Agent, you need to define the following:
-1. Role: The role of the agent.
-2. Backstory: The backstory of the agent.
-3. Goal: The goal of the agent.
-4. Tools: The tools that the agent has access to (optional).
-5. Allow Delegation: Whether the agent can delegate tasks to other agents(optional).
+# Trip Planner Agent
 
-    [More Details about Agent](https://docs.crewai.com/concepts/agents).
+## Overview
 
-## task.py
-This file contains the definition of custom tasks.
-To Create a task, you need to define the following :
-1. description: A string that describes the task.
-2. agent: An agent object that will be assigned to the task.
-3. expected_output: The expected output of the task.
+The Trip Planner Agent is an AI-powered travel planning tool built with the crewai framework. It uses specialized AI agents to generate detailed travel itineraries, city information, and logistical support based on user preferences.
 
-    [More Details about Task](https://docs.crewai.com/concepts/tasks).
+## Features
 
-## crew (main.py)
-This is the main file that you will use to run your custom crew.
-To create a Crew , you need to define Agent ,Task and following Parameters:
-1. Agent: List of agents that you want to include in the crew.
-2. Task: List of tasks that you want to include in the crew.
-3. verbose: If True, print the output of each task.(default is False).
-4. debug: If True, print the debug logs.(default is False).
+• Intelligent City Selection: AI-driven city recommendations based on weather, season, and pricing.
 
-    [More Details about Crew](https://docs.crewai.com/concepts/crew).
+• Local Insights: In-depth information on attractions, customs, and events for selected cities.
+
+• Comprehensive Itineraries: Detailed 7-day travel plans including daily schedules, weather, packing, and budget.
+
+• Modular AI Agents: Flexible architecture using crewai for scalable travel planning.
+
+• Tool Integration: Utilizes internet search and calculator tools for real-time data.
+
+## To get started with the Trip Planner Agent:
+
+ 1. Clone the repository
+
+ 2.Install dependencies (Poetry recommended)
+
+ 3.Configure API Keys: Create a .env file and add your necessary API keys (e.g., OPENAI_API_KEY).
+
+ 4.Run the application
+
+## Project Structure
+
+• main.py: Application entry point and crew orchestration.
+
+• agents.py: Defines AI agents (City Selection Expert, Local Expert, Travel Concierge).
+
+• tasks.py: Defines tasks for agents (Plan Itinerary, Identify City, Gather City Info).
+
+• tools/: Contains utility tools (calculator_tools.py, search_tools.py).
