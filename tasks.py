@@ -11,7 +11,7 @@ class TravelTasks:
         return Task(
             description=dedent(
                 f"""
-            ***Task**: Develop a 7-day travel itinerary for {city}.*
+            ***Task**: Develop a 7-day travel itinerary for the chosen city.*
             **Description**: Expand the city guide into a full 7-day travel itinerary with detailed per-day plans, including weather forecasts, places to eat, packing suggestions, and a budget breakdown.
             You MUST suggest actual places to visit, actual hotels to stay, and actual restaurants to go to.
             This itinerary should cover all aspects of the trip, from arrival to departure, integrating the city guide information with practical travel logistics.
@@ -27,7 +27,7 @@ class TravelTasks:
             Make sure to use the most recent data as possible, and consider the current travel restrictions or requirements.
         """
             ),
-            expected_output="The expected output of the task",
+            expected_output="Your final answer MUST be a complete expanded travel plan, formatted as markdown, encompassing a daily schedule, anticipated weather conditions, recommended clothing and items to pack, and a detailed budget, ensuring THE BEST TRIP EVER.",
             agent=agent,
         )
 
