@@ -78,8 +78,35 @@ The project was a flat set of scripts with no package, not importable or install
 
 "Welcome to **you** AI Travel Crew" / "Here is **you** Trip plan" → corrected to "your".
 
+## Changelog — later changes
+
+After the original audit, the project was extended and rebranded:
+
+- **Rebranded to Voyagent.** The package, console script, and env-var prefix were renamed
+  (`trip_planner` → `voyagent`, `TRIP_PLANNER_*` → `VOYAGENT_*`).
+- **Provider-switchable LLM.** `config.build_llm()` now supports Groq (free) alongside OpenAI via
+  `VOYAGENT_PROVIDER`; Groq uses `crewai.LLM` over LiteLLM (`crewai[litellm]`).
+- **Grounded prompts.** A shared `_GROUNDING_RULES` block makes agents verify via search, use
+  real in-country places only, never invent links (verbatim-from-results only), and omit
+  unverifiable details. Currency and weather (°C) formatting are enforced.
+- **Correct city handoff.** `gather_city_info`/`plan_itinerary` now receive the selected city via
+  task `context` instead of the raw candidate list, fixing trips planned for the wrong city.
+- **Dynamic trip length.** The hardcoded "7-day" itinerary was replaced with "cover exactly the
+  travel dates."
+- **Agent tuning.** `max_iter=10`, `allow_delegation=False`, `verbose=False`.
+- **Groq free-tier resilience.** Step throttling (`GROQ_STEP_DELAY_SECONDS`), rate-limit retries
+  (`GROQ_NUM_RETRIES`), and whole-crew retry on `tool_use_failed` (`CREW_MAX_ATTEMPTS`); search
+  results trimmed to 2 with truncated snippets to limit tokens.
+- **Streamlit web app.** `streamlit_app.py` with a date-range picker, abstracted 3-phase progress
+  (no raw reasoning), a Tropical Sunset theme, and Streamlit Community Cloud deploy support
+  (secrets copied into the environment at startup).
+- **Dependencies.** `requirements.txt` switched to `crewai[litellm]` and **dropped the unused
+  `unstructured` and `pyowm`** packages.
+
 ## Remaining suggestions (not yet done)
 
-- Add automated tests (e.g. for the calculator evaluator and `validate_env`).
-- Add a weather tool using the already-declared `pyowm` dependency.
-- Consider trimming unused dependencies (`unstructured`) if not needed.
+- Add automated tests (e.g. for the calculator evaluator, `validate_env`, and provider selection
+  in `build_llm`).
+- Add a dedicated weather tool (add the weather SDK of your choice as a dependency).
+- Reconcile `pyproject.toml` with `requirements.txt` (it still lists the now-unused `unstructured`
+  and `pyowm`).

@@ -1,24 +1,31 @@
 # Configuration & extension
 
-## Changing the LLM
+## Choosing a provider / changing the LLM
 
-The model is configured in **one place** — `src/voyagent/config.py`:
+Provider and model are configured in **one place** — `src/voyagent/config.py`:
 
 ```python
-MODEL_NAME = os.environ.get("VOYAGENT_MODEL", "gpt-4o-mini")
+PROVIDER = os.environ.get("VOYAGENT_PROVIDER", "openai").lower()   # "openai" | "groq"
+MODEL_NAME = os.environ.get("VOYAGENT_MODEL", _DEFAULT_MODELS.get(PROVIDER, "gpt-4o-mini"))
 MODEL_TEMPERATURE = float(os.environ.get("VOYAGENT_TEMPERATURE", "0.2"))
 ```
 
-`config.build_llm()` returns a single `ChatOpenAI` instance that all three agents share, so
-you never edit per-agent model settings.
+`config.build_llm()` returns a single model instance that all three agents share, so you never
+edit per-agent model settings:
 
-To change the model, either:
+- **openai** → `langchain_openai.ChatOpenAI` (default model `gpt-4o-mini`).
+- **groq** → `crewai.LLM` using LiteLLM's `groq/<model>` (default `llama-3.3-70b-versatile`),
+  with `num_retries` so it waits out Groq's rate-limit 429s.
 
-- Set an environment variable (no code change): `VOYAGENT_MODEL=gpt-4o`, or
-- Edit `MODEL_NAME` in `config.py`.
+To switch (no code change), set environment variables:
 
-To use a non-OpenAI, LangChain-compatible chat model, change the implementation of
-`build_llm()` to construct that model instead.
+```env
+VOYAGENT_PROVIDER=groq
+VOYAGENT_MODEL=llama-3.1-8b-instant   # optional: a lighter/faster Groq model
+```
+
+To add another LiteLLM-supported provider, follow the `groq` branch in `build_llm()` and use the
+right `provider/model` prefix. For a different LangChain chat model, change the openai branch.
 
 ## Adding a tool
 
@@ -42,27 +49,51 @@ To use a non-OpenAI, LangChain-compatible chat model, change the implementation 
    tools=[SearchTools.search_internet, WeatherTools.forecast]
    ```
 
-The dependency list (`pyproject.toml`) already includes `pyowm`, suggesting OpenWeatherMap
-integration was intended — a weather tool is a natural extension.
+A dedicated weather tool is a natural extension — it would let the Travel Concierge report
+forecasts without relying on web-search snippets. (Note: `requirements.txt` no longer ships
+`pyowm`/`unstructured`; add the dependency you need.)
 
 ## Tuning prompts / behavior
 
-- **Trip length:** the itinerary is hard-coded to 7 days in `tasks.plan_itinerary`. Edit the
-  prompt text to change it.
-- **Search depth:** `SearchTools` returns the top 5 results (`TOP_RESULTS_TO_RETURN`). Raise it
-  for more context per search. Adjust `REQUEST_TIMEOUT_SECONDS` for the HTTP timeout.
+- **Trip length:** the itinerary now follows the **exact travel dates** (no fixed number of
+  days). The instruction lives in `tasks.plan_itinerary`.
+- **Grounding rules:** the shared `_GROUNDING_RULES` string in `tasks.py` controls the
+  anti-hallucination guardrails (verified places only, no guessed links, omit-when-unsure).
+  Tighten or relax them there.
+- **Search depth:** `SearchTools` returns the top **2** results (`TOP_RESULTS_TO_RETURN`) and
+  truncates snippets to `MAX_SNIPPET_CHARS` (150) to keep token use low. Raise either for more
+  context per search (at the cost of more tokens). Adjust `REQUEST_TIMEOUT_SECONDS` for the HTTP
+  timeout.
+- **Agent loop cap:** `_MAX_ITER` (10) in `agents.py` caps each agent's reasoning/tool
+  iterations.
 - **Incentive line:** `TravelTasks.__tip_section()` injects the "$10,000 commission" nudge into
   every task prompt; edit or remove it there.
-- **Verbosity:** `Crew(..., verbose=True)` in `crew.py` controls the live reasoning logs.
+- **Verbosity:** the `Crew` and agents run with `verbose=False`. Set `verbose=True` in `crew.py`
+  / `agents.py` to see the agents' raw reasoning (the web app deliberately hides it regardless).
+
+## Groq free-tier tuning
+
+Used only when `VOYAGENT_PROVIDER=groq`, to stay within Groq's rate limits:
+
+| Variable | Effect | Default |
+|---|---|---|
+| `GROQ_STEP_DELAY_SECONDS` | sleep between agent steps to respect the tokens-per-minute cap (`0` disables) | `10` |
+| `GROQ_NUM_RETRIES` | LiteLLM retries when Groq returns a rate-limit 429 | `8` |
+| `CREW_MAX_ATTEMPTS` | retries of the whole crew on Groq's transient `tool_use_failed` error | `3` |
+
+On a paid Groq tier you can set `GROQ_STEP_DELAY_SECONDS=0` to remove the pacing.
 
 ## Environment variables
 
-See [Setup](setup.md). The code reads:
+See [Setup](setup.md) for the full list. The code reads:
 
 | Variable | Used by | Required |
 |---|---|---|
-| `OPENAI_API_KEY` | agents (`ChatOpenAI`) | Yes |
 | `SERPER_API_KEY` | `SearchTools.search_internet` | Yes |
+| `OPENAI_API_KEY` | openai provider (`ChatOpenAI`) | Yes if `VOYAGENT_PROVIDER=openai` |
+| `GROQ_API_KEY` | groq provider | Yes if `VOYAGENT_PROVIDER=groq` |
 | `OPENAI_ORGANIZATION_ID` | OpenAI client (optional) | No |
-| `VOYAGENT_MODEL` | model selection | No (default `gpt-4o-mini`) |
+| `VOYAGENT_PROVIDER` | provider selection | No (default `openai`) |
+| `VOYAGENT_MODEL` | model selection | No (provider default) |
 | `VOYAGENT_TEMPERATURE` | sampling temperature | No (default `0.2`) |
+| `GROQ_STEP_DELAY_SECONDS` / `GROQ_NUM_RETRIES` / `CREW_MAX_ATTEMPTS` | Groq pacing/retries | No |
