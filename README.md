@@ -8,32 +8,38 @@ Three CrewAI agents run sequentially, each with its own role, tools, and reasoni
 
 | Agent | Role | What it does |
 |---|---|---|
-| **City Selection Expert** | Analyzes travel data across candidate destinations | Weighs weather, season, and pricing to recommend the best city to visit. Uses web search + calculator. Backed by `o1-mini` for reasoning. |
+| **City Selection Expert** | Analyzes travel data across candidate destinations | Weighs weather, season, and pricing to recommend the best city to visit. Uses web search + calculator. |
 | **Local Expert** | Acts as a knowledgeable resident of the selected city | Gathers attractions, customs, hidden gems, and seasonal events. Uses web search. |
 | **Travel Concierge** | Builds the final deliverable | Produces a detailed itinerary with daily schedules, budget breakdown, and a packing list. Uses web search + calculator. |
 
-The agents are coordinated by a `Crew` defined in `main.py`, which kicks off three tasks (`identify_city`, `gather_city_info`, `plan_itinerary`) in turn.
+All three agents share a single `gpt-4o-mini` model configured in `src/trip_planner/config.py`. They are coordinated by a `Crew` defined in `src/trip_planner/crew.py`, which runs three tasks in logical order: `identify_city` → `gather_city_info` → `plan_itinerary`.
 
 ## Tech stack
 
 - **Python 3** with **Poetry** for dependency management
 - **CrewAI** — multi-agent orchestration framework
-- **LangChain + `langchain-openai`** — `ChatOpenAI` wrapper with `o1-mini`
+- **LangChain + `langchain-openai`** — `ChatOpenAI` wrapper with `gpt-4o-mini`
 - **SerperDev / web search** — `tools/search_tools.py`
-- **Custom calculator tool** — `tools/calculator_tools.py`
+- **Custom calculator tool** — `tools/calculator_tools.py` (safe AST evaluator)
 - **python-dotenv** — environment variable management
 
 ## Repository structure
 
 ```
 .
-├── main.py                       # Entry point — CLI prompts + Crew orchestration
-├── agents.py                     # 3 agent definitions (role, goal, tools, LLM)
-├── tasks.py                      # Task definitions (plan_itinerary, identify_city, gather_city_info)
-├── tools/
-│   ├── search_tools.py           # Internet search tool
-│   └── calculator_tools.py       # Calculator tool for budget math
-├── .env_example                  # Template for required API keys
+├── src/
+│   └── trip_planner/
+│       ├── __main__.py           # CLI entry point (python -m trip_planner)
+│       ├── crew.py               # TripCrew — Crew orchestration
+│       ├── agents.py             # 3 agent definitions (role, goal, tools, LLM)
+│       ├── tasks.py              # Task definitions (identify_city, gather_city_info, plan_itinerary)
+│       ├── config.py             # Env loading, key validation, model config
+│       └── tools/
+│           ├── search_tools.py   # Internet search tool (Serper.dev)
+│           └── calculator_tools.py  # Calculator tool for budget math
+├── docs/                         # Project documentation
+├── .env.example                  # Template for required API keys
+├── requirements.txt              # pip alternative to Poetry
 ├── pyproject.toml                # Poetry project + dependencies
 └── poetry.lock
 ```
@@ -57,15 +63,15 @@ poetry shell
 Or with pip:
 
 ```bash
-pip install crewai langchain-openai python-dotenv
+pip install -r requirements.txt
 ```
 
 ### 3. Configure API keys
 
-Copy `.env_example` to `.env` and fill in:
+Copy `.env.example` to `.env` and fill in:
 
 ```bash
-cp .env_example .env
+cp .env.example .env
 ```
 
 ```env
@@ -73,12 +79,14 @@ OPENAI_API_KEY=sk-...
 SERPER_API_KEY=...
 ```
 
-`OPENAI_API_KEY` powers the agents (via `o1-mini`); `SERPER_API_KEY` (or whatever search provider `tools/search_tools.py` uses) powers the web search tool.
+`OPENAI_API_KEY` powers the agents (via `gpt-4o-mini`); `SERPER_API_KEY` powers the web search tool (Serper.dev). The app validates these at startup and fails fast with a clear message if either is missing.
 
 ### 4. Run
 
 ```bash
-python main.py
+python -m trip_planner
+# or, after `poetry install`:
+trip-planner
 ```
 
 You'll be prompted for four inputs:
@@ -104,7 +112,7 @@ A typical run produces something like:
 
 ## Configuration
 
-To change the LLM used by an agent, edit `agents.py` — each agent currently uses `ChatOpenAI(model='o1-mini', temperature=0.2)`. Swap in another OpenAI model or any LangChain-compatible chat model. To extend the toolset, add a new tool in `tools/` and attach it to the relevant agent in `agents.py`.
+The model is configured in one place — `src/trip_planner/config.py` (`MODEL_NAME`, defaulting to `gpt-4o-mini`). You can override it without editing code via the `TRIP_PLANNER_MODEL` and `TRIP_PLANNER_TEMPERATURE` environment variables. To extend the toolset, add a new tool in `src/trip_planner/tools/` and attach it to the relevant agent in `agents.py`. See [docs/configuration.md](docs/configuration.md) for details.
 
 ## License
 
