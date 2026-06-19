@@ -9,12 +9,23 @@ trip plan with a download button.
 
 from __future__ import annotations
 
+import os
 import queue
 import sys
 import threading
 from pathlib import Path
 
 import streamlit as st
+
+# On Streamlit Community Cloud, API keys are set in the dashboard and exposed via
+# st.secrets. voyagent.config reads os.environ at import time, so copy any secrets
+# into the environment first. No-op locally (no secrets file), where the .env is
+# loaded by config instead. setdefault means a real env var always wins.
+try:
+    for _key, _value in st.secrets.items():
+        os.environ.setdefault(_key, str(_value))
+except Exception:
+    pass
 
 # Make the src-layout package importable even when it isn't pip-installed
 # (e.g. running `streamlit run streamlit_app.py` straight from a clone).
