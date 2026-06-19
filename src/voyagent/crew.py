@@ -51,7 +51,7 @@ class TripCrew:
         # On Groq's free tier, pace each step to stay under the tokens-per-minute
         # cap. GROQ_STEP_DELAY_SECONDS=0 disables it (e.g. on a paid tier).
         if config.PROVIDER == "groq":
-            delay = float(os.environ.get("GROQ_STEP_DELAY_SECONDS", "5"))
+            delay = float(os.environ.get("GROQ_STEP_DELAY_SECONDS", "10"))
             if delay > 0:
                 step_callback = _throttled(step_callback, delay)
 
