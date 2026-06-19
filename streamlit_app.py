@@ -41,118 +41,55 @@ st.set_page_config(page_title="Voyagent · AI Travel Planner", page_icon="✈️
 
 
 # --- Styling ------------------------------------------------------------------
+# Supplementary polish for Streamlit's own elements. If the host sanitizes the
+# <style> tag, the app still looks themed via .streamlit/config.toml, and the
+# hero below uses inline styles that always render.
 
 _STYLE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&display=swap');
-
-/* Warm travel-sky backdrop */
+html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
 [data-testid="stAppViewContainer"] {
     background:
         radial-gradient(1200px 500px at 20% -10%, #ffe3c7 0%, rgba(255,227,199,0) 60%),
         radial-gradient(1000px 500px at 90% 0%, #cdeefb 0%, rgba(205,238,251,0) 55%),
         linear-gradient(180deg, #fef7f0 0%, #fdfbf7 100%);
-    font-family: 'Poppins', sans-serif;
 }
 [data-testid="stHeader"] { background: transparent; }
 .block-container { max-width: 760px; padding-top: 2rem; }
-
-/* Hero */
-.hero {
-    border-radius: 24px;
-    padding: 2.6rem 2rem 2.9rem;
-    background: linear-gradient(120deg, #ff9966 0%, #ff7a59 38%, #ef5d8f 72%, #7c5cff 100%);
-    box-shadow: 0 18px 40px -18px rgba(239, 93, 143, 0.55);
-    text-align: center;
-    color: #fff;
-    position: relative;
-    overflow: hidden;
-}
-.hero::after {
-    content: "";
-    position: absolute; inset: 0;
-    background: radial-gradient(600px 220px at 80% -20%, rgba(255,255,255,.35), transparent 60%);
-}
-.hero .badge {
-    display: inline-block;
-    font-size: .8rem; letter-spacing: .14em; text-transform: uppercase;
-    font-weight: 500;
-    background: rgba(255,255,255,.18);
-    border: 1px solid rgba(255,255,255,.35);
-    padding: .35rem .9rem; border-radius: 999px;
-    backdrop-filter: blur(4px);
-}
-.hero h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 3.3rem; line-height: 1.05; margin: .7rem 0 .5rem;
-    font-weight: 700; letter-spacing: -.5px;
-}
-.hero p {
-    max-width: 30rem; margin: 0 auto; font-size: 1.02rem;
-    font-weight: 300; opacity: .96; line-height: 1.5;
-}
-
-/* Form card */
 [data-testid="stForm"] {
-    background: #ffffff;
-    border: 1px solid #f1e6da;
-    border-radius: 20px;
-    padding: 1.6rem 1.6rem .4rem;
+    background: #ffffff; border: 1px solid #f1e6da; border-radius: 20px;
     box-shadow: 0 14px 40px -24px rgba(60,40,20,.35);
-    margin-top: -1.6rem;
 }
-
-/* Inputs */
-[data-testid="stForm"] label p { font-weight: 500 !important; color: #4a3a2c; }
-.stTextInput input, .stDateInput input {
-    border-radius: 12px !important;
-}
-
-/* Submit button */
+.stTextInput input, .stDateInput input { border-radius: 12px !important; }
 [data-testid="stFormSubmitButton"] button {
-    width: 100%;
-    border: none;
-    border-radius: 999px;
-    padding: .7rem 1rem;
-    font-weight: 600; font-size: 1.02rem;
-    color: #fff;
+    width: 100%; border: none; border-radius: 999px; padding: .7rem 1rem;
+    font-weight: 600; font-size: 1.02rem; color: #fff;
     background: linear-gradient(120deg, #ff7a59 0%, #ef5d8f 60%, #7c5cff 100%);
     box-shadow: 0 10px 22px -10px rgba(239,93,143,.7);
-    transition: transform .12s ease, box-shadow .12s ease;
 }
-[data-testid="stFormSubmitButton"] button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 14px 26px -10px rgba(239,93,143,.8);
-    color: #fff;
-}
-
-/* Itinerary result card */
-.plan-card {
-    background: #fff;
-    border: 1px solid #f1e6da;
-    border-radius: 20px;
-    padding: .4rem 1.8rem 1rem;
-    box-shadow: 0 14px 40px -24px rgba(60,40,20,.35);
-}
-.section-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.7rem; color: #23303d; margin: 1.6rem 0 .2rem;
-}
-.foot { text-align:center; color:#9a8a7a; font-size:.82rem; margin: 2rem 0 .5rem; }
+[data-testid="stFormSubmitButton"] button:hover { color:#fff; transform: translateY(-1px); }
 </style>
 """
-st.markdown(_STYLE, unsafe_allow_html=True)
+st.html(_STYLE)
 
-st.markdown(
-    """
-    <div class="hero">
-        <span class="badge">✈️ AI Travel Planner</span>
-        <h1>Voyagent</h1>
-        <p>Tell us where you dream of going. Our AI travel crew picks the perfect
-        city, uncovers local secrets, and crafts your day-by-day itinerary.</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
+# Hero — inline styles so it renders regardless of <style> sanitization.
+st.html(
+    '<div style="border-radius:24px;padding:2.6rem 2rem;text-align:center;color:#fff;'
+    'margin-bottom:1.1rem;'
+    'background:linear-gradient(120deg,#ff9966 0%,#ff7a59 38%,#ef5d8f 72%,#7c5cff 100%);'
+    'box-shadow:0 18px 40px -18px rgba(239,93,143,.55);">'
+    '<span style="display:inline-block;font-size:.78rem;letter-spacing:.14em;'
+    'text-transform:uppercase;background:rgba(255,255,255,.18);'
+    'border:1px solid rgba(255,255,255,.4);padding:.35rem .9rem;border-radius:999px;">'
+    '✈️ AI Travel Planner</span>'
+    "<h1 style=\"font-family:'Playfair Display',serif;font-size:3rem;line-height:1.05;"
+    'margin:.7rem 0 .5rem;font-weight:700;color:#fff;">Voyagent</h1>'
+    '<p style="max-width:30rem;margin:0 auto;font-size:1.02rem;font-weight:300;'
+    'opacity:.96;line-height:1.5;color:#fff;">Tell us where you dream of going. Our AI '
+    'travel crew picks the perfect city, uncovers local secrets, and crafts your '
+    'day-by-day itinerary.</p>'
+    "</div>"
 )
 
 
@@ -265,10 +202,9 @@ if submitted:
         st.error(f"Something went wrong while planning your trip:\n\n{holder['error']}")
     else:
         plan = holder.get("result", "")
-        st.markdown('<div class="section-title">🧳 Your itinerary</div>', unsafe_allow_html=True)
-        st.markdown('<div class="plan-card">', unsafe_allow_html=True)
-        st.markdown(plan)
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.subheader("🧳 Your itinerary")
+        with st.container(border=True):
+            st.markdown(plan)
         st.download_button(
             "⬇️  Download plan (Markdown)",
             data=plan,
@@ -276,5 +212,4 @@ if submitted:
             mime="text/markdown",
         )
 
-st.markdown('<div class="foot">Crafted by Voyagent · powered by an AI travel crew</div>',
-            unsafe_allow_html=True)
+st.caption("Crafted by Voyagent · powered by an AI travel crew")
