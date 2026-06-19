@@ -1,5 +1,6 @@
 # For pip users. Poetry users: use `poetry install` (see pyproject.toml / poetry.lock).
-crewai>=0.130.0
+# [litellm] extra is required for non-native providers like Groq.
+crewai[litellm]>=0.130.0
 langchain>=0.3.27
 langchain-openai>=0.3.28
 langchain-community>=0.3.27
