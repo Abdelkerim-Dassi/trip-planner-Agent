@@ -25,6 +25,21 @@ def _throttled(step_callback, delay_seconds):
     return _callback
 
 
+def _is_transient_tool_error(exc) -> bool:
+    """True for Groq's intermittent malformed-tool-call rejection.
+
+    Groq's Llama models occasionally emit a tool call in the wrong format, which
+    Groq rejects server-side (``tool_use_failed``) before CrewAI can re-prompt.
+    The same request usually succeeds on a fresh attempt.
+    """
+    msg = str(exc).lower()
+    return (
+        "tool_use_failed" in msg
+        or "failed to call a function" in msg
+        or "please adjust your prompt" in msg
+    )
+
+
 class TripCrew:
     def __init__(self, origin, cities, date_range, interests):
         self.origin = origin
@@ -33,6 +48,25 @@ class TripCrew:
         self.interests = interests
 
     def run(self, step_callback=None, task_callback=None):
+        # On Groq's free tier, pace each step to stay under the tokens-per-minute
+        # cap. GROQ_STEP_DELAY_SECONDS=0 disables it (e.g. on a paid tier).
+        if config.PROVIDER == "groq":
+            delay = float(os.environ.get("GROQ_STEP_DELAY_SECONDS", "5"))
+            if delay > 0:
+                step_callback = _throttled(step_callback, delay)
+
+        # Retry the whole crew on Groq's intermittent malformed-tool-call error.
+        attempts = int(os.environ.get("CREW_MAX_ATTEMPTS", "3"))
+        for attempt in range(1, attempts + 1):
+            try:
+                return self._kickoff(step_callback, task_callback)
+            except Exception as exc:
+                if attempt == attempts or not _is_transient_tool_error(exc):
+                    raise
+                time.sleep(2)  # brief pause, then rebuild and try again
+
+    def _kickoff(self, step_callback, task_callback):
+        """Build a fresh crew and run it once."""
         agents = TravelAgents()
         tasks = TravelTasks()
 
@@ -50,13 +84,6 @@ class TripCrew:
         plan_itinerary = tasks.plan_itinerary(
             concierge, self.cities, self.date_range, self.interests
         )
-
-        # On Groq's free tier, pace each step to stay under the tokens-per-minute
-        # cap. GROQ_STEP_DELAY_SECONDS=0 disables it (e.g. on a paid tier).
-        if config.PROVIDER == "groq":
-            delay = float(os.environ.get("GROQ_STEP_DELAY_SECONDS", "5"))
-            if delay > 0:
-                step_callback = _throttled(step_callback, delay)
 
         # Tasks run in logical order: pick the city, learn about it, then plan.
         # Optional callbacks let a UI observe progress: step_callback fires on
