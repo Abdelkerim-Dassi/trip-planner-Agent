@@ -13,6 +13,7 @@ import os
 import queue
 import sys
 import threading
+from datetime import date, timedelta
 from pathlib import Path
 
 import streamlit as st
@@ -82,19 +83,33 @@ except MissingConfigError as exc:
     st.error(str(exc))
     st.stop()
 
+_today = date.today()
 with st.form("trip_form"):
     origin = st.text_input("Origin", placeholder="Tunis")
     cities = st.text_input(
         "Candidate destinations (comma-separated)", placeholder="Lisbon, Porto, Barcelona"
     )
-    travel_dates = st.text_input("Travel time range", placeholder="15 June - 22 June")
+    date_range = st.date_input(
+        "Travel dates",
+        value=(_today, _today + timedelta(days=7)),
+        min_value=_today,
+        format="DD/MM/YYYY",
+    )
     interests = st.text_input("Interests", placeholder="food, architecture, beach")
     submitted = st.form_submit_button("Plan my trip ✨")
 
 if submitted:
-    if not all([origin.strip(), cities.strip(), travel_dates.strip(), interests.strip()]):
-        st.warning("Please fill in all four fields.")
+    # A date_input range returns a tuple; it has only one item until the second
+    # date is chosen, so require both before continuing.
+    if not isinstance(date_range, (tuple, list)) or len(date_range) != 2:
+        st.warning("Please pick both a start and end date.")
         st.stop()
+    if not all([origin.strip(), cities.strip(), interests.strip()]):
+        st.warning("Please fill in origin, destinations, and interests.")
+        st.stop()
+
+    start_date, end_date = date_range
+    travel_dates = f"{start_date:%d %B %Y} - {end_date:%d %B %Y}"
 
     crew = TripCrew(origin, cities, travel_dates, interests)
     events: "queue.Queue" = queue.Queue()
