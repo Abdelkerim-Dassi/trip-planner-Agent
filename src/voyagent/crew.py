@@ -75,14 +75,18 @@ class TripCrew:
         local_expert = agents.local_expert()
         concierge = agents.travel_concierge()
 
+        # The selected city flows forward via task context, not by re-passing the
+        # candidate list: gather_city_info reads identify_city's output, and
+        # plan_itinerary reads the guide. This stops downstream agents from
+        # planning a trip to the wrong (or origin) city.
         identify_city = tasks.identify_city(
             city_selector, self.origin, self.cities, self.date_range, self.interests
         )
         gather_city_info = tasks.gather_city_info(
-            local_expert, self.cities, self.date_range, self.interests
+            local_expert, self.date_range, self.interests, context=[identify_city]
         )
         plan_itinerary = tasks.plan_itinerary(
-            concierge, self.cities, self.date_range, self.interests
+            concierge, self.date_range, self.interests, context=[gather_city_info]
         )
 
         # Tasks run in logical order: pick the city, learn about it, then plan.
@@ -91,7 +95,7 @@ class TripCrew:
         crew = Crew(
             agents=[city_selector, local_expert, concierge],
             tasks=[identify_city, gather_city_info, plan_itinerary],
-            verbose=True,
+            verbose=False,
             step_callback=step_callback,
             task_callback=task_callback,
         )

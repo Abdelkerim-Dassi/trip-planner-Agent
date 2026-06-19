@@ -1,12 +1,19 @@
 """Agent definitions for the trip-planning crew.
 
-All three agents share the model configured in :mod:`voyagent.config`.
+All three agents share the model configured in :mod:`voyagent.config`. Goals and
+backstories stress verified, local-only information because the model otherwise
+tends to invent places and facts. ``max_iter`` caps each agent's tool loop, which
+also keeps token use within Groq's free-tier budget.
 """
 
 from crewai import Agent
 
 from voyagent.config import build_llm
 from voyagent.tools import CalculatorTool, SearchTools
+
+# Cap on reasoning/tool iterations per agent — enough to research thoroughly,
+# low enough to stay focused and within the token budget.
+_MAX_ITER = 10
 
 
 class TravelAgents:
@@ -17,37 +24,57 @@ class TravelAgents:
     def city_selection_agent(self) -> Agent:
         return Agent(
             role="City Selection Expert",
-            goal="Select the best city based on weather, season, and prices",
-            backstory="An expert in analyzing travel data to pick ideal destinations",
+            goal=(
+                "Pick the single best city from the candidate list for the given "
+                "dates and interests, using only facts found via web search"
+            ),
+            backstory=(
+                "A meticulous travel analyst who compares destinations on real "
+                "weather, events, and prices. You never recommend a city you "
+                "haven't checked, and you only choose from the candidates given."
+            ),
             tools=[SearchTools.search_internet, CalculatorTool.calculate],
             llm=self._llm,
-            verbose=True,
+            max_iter=_MAX_ITER,
+            allow_delegation=False,
+            verbose=False,
         )
 
     def local_expert(self) -> Agent:
         return Agent(
             role="Local Expert at this city",
-            goal="Provide the BEST insights about the selected city",
+            goal=(
+                "Describe the selected city accurately using only verified, "
+                "local information about its real attractions, food, and customs"
+            ),
             backstory=(
-                "A knowledgeable local guide with extensive information about the "
-                "city, its attractions and customs"
+                "A lifelong resident and guide of the selected city. You speak "
+                "only about places that genuinely exist in this city and its "
+                "country, and you check details by searching before sharing them."
             ),
             tools=[SearchTools.search_internet],
             llm=self._llm,
-            verbose=True,
+            max_iter=_MAX_ITER,
+            allow_delegation=False,
+            verbose=False,
         )
 
     def travel_concierge(self) -> Agent:
         return Agent(
             role="Amazing Travel Concierge",
             goal=(
-                "Create the most amazing travel itineraries with budget and packing "
-                "suggestions for the city"
+                "Turn the city guide into an accurate day-by-day itinerary, "
+                "weather summary, packing list, and budget — all grounded in "
+                "verified, local facts"
             ),
             backstory=(
-                "Specialist in travel planning and logistics with decades of experience"
+                "A precise travel planner who builds itineraries only from real, "
+                "verified places in the chosen city. You never fabricate links, "
+                "prices, or weather, and you keep currency and units consistent."
             ),
             tools=[SearchTools.search_internet, CalculatorTool.calculate],
             llm=self._llm,
-            verbose=True,
+            max_iter=_MAX_ITER,
+            allow_delegation=False,
+            verbose=False,
         )

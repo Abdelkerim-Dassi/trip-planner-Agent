@@ -1,11 +1,33 @@
 """Task definitions for the trip-planning crew.
 
 To learn more about the Task class, see: https://docs.crewai.com/concepts/tasks
+
+The prompts deliberately push the agents to ground every claim in the
+``Search the internet`` tool and to omit anything they cannot verify, since the
+underlying model will otherwise invent plausible-but-wrong places, links and
+weather.
 """
 
 from textwrap import dedent
 
 from crewai import Task
+
+# Shared grounding rules injected into every task so the agents stay factual.
+_GROUNDING_RULES = dedent(
+    """
+    **Strict accuracy rules — follow exactly:**
+    - Use the *Search the internet* tool to verify everything. Base your answer
+      only on what the search results actually say.
+    - Only mention real, currently-operating places that are located in THIS
+      city and its country. Never reference another country's food, landmarks,
+      or customs.
+    - Links: include a URL only if you copied it verbatim from a search result.
+      NEVER make up or guess a URL. If you have no verified link for a place,
+      just give its name and neighbourhood — no link.
+    - If you cannot verify a detail, leave it out rather than guessing.
+    - Write for the traveller: clean markdown, no notes about your own process.
+    """
+).strip()
 
 
 class TravelTasks:
@@ -16,74 +38,114 @@ class TravelTasks:
         return Task(
             description=dedent(
                 f"""
-                ***Task**: Identify the city for the travel itinerary.*
-                **Description**: Analyze and select the most suitable city for a 7-day travel itinerary based on specific
-                criteria such as weather patterns, seasonal events, and travel costs.
-                This task involves comparing multiple cities considering factors like current weather conditions, upcoming events, and overall travel costs.
-                **Parameters**:
+                ***Task**: Pick the single best city for this trip.*
+
+                Choose ONLY from these candidate cities: {cities}.
+                Do NOT pick the origin ({origin}) and do NOT pick any city that
+                is not in that list.
+
+                Compare the candidates using the *Search the internet* tool to
+                check the weather/season for the travel dates, any notable events,
+                and rough travel costs from {origin}. Recommend the one city that
+                best fits the traveller's interests.
+
+                **Trip parameters:**
                 - Origin: {origin}
-                - Cities: {cities}
-                - Travel Date: {travel_dates}
+                - Candidate cities: {cities}
+                - Travel dates: {travel_dates}
                 - Interests: {interests}
+
+                {_GROUNDING_RULES}
 
                 **Note**: {self.__tip_section()}
                 """
             ),
-            expected_output=(
-                "Detailed report on the chosen city including flight costs, weather "
-                "forecast, and attractions"
-            ),
+            expected_output=dedent(
+                """
+                The name of the ONE selected city (from the candidate list) and a
+                short justification covering weather for the dates, approximate
+                flight cost from the origin, and why it fits the interests.
+                """
+            ).strip(),
             agent=agent,
         )
 
-    def gather_city_info(self, agent, city, travel_dates, interests) -> Task:
+    def gather_city_info(self, agent, travel_dates, interests, context=None) -> Task:
         return Task(
             description=dedent(
                 f"""
-                ***Task**: Gather In-Depth City Information.
-                **Description**: Compile an in-depth guide for the selected city, focusing on key attractions, local customs, special events, and daily activity recommendations.
-                The guide should provide a thorough overview of what the city has to offer, including hidden gems, cultural hotspots, must-visit landmarks, weather forecasts, and high-level costs.
-                This guide should be tailored to enhance the travel experience, providing practical tips and cultural insights.
-                The final answer must be a comprehensive city guide.
-                **Parameters**:
-                - City: {city}
-                - Travel Date: {travel_dates}
+                ***Task**: Build an in-depth guide for the city selected in the
+                previous step.*
+
+                Use the city chosen by the City Selection Expert (see context).
+                Using the *Search the internet* tool, compile a guide covering the
+                top attractions, neighbourhoods, local customs, must-try local
+                food, and any events happening during the travel dates. Tailor it
+                to the traveller's interests.
+
+                **Trip parameters:**
+                - Travel dates: {travel_dates}
                 - Interests: {interests}
+
+                {_GROUNDING_RULES}
 
                 **Note**: {self.__tip_section()}
                 """
             ),
-            expected_output=(
-                "A detailed city guide including attractions, local customs, events, "
-                "and daily activities"
-            ),
+            expected_output=dedent(
+                """
+                A comprehensive guide to the SELECTED city: key attractions,
+                neighbourhoods, local customs, local food to try, and events
+                during the travel dates — every item verified via search and
+                located in that city.
+                """
+            ).strip(),
             agent=agent,
+            context=context if context is not None else [],
         )
 
-    def plan_itinerary(self, agent, city, travel_dates, interests) -> Task:
+    def plan_itinerary(self, agent, travel_dates, interests, context=None) -> Task:
         return Task(
             description=dedent(
                 f"""
-                ***Task**: Develop a 7-day travel itinerary for the chosen city.*
-                **Description**: Expand the city guide into a full 7-day travel itinerary with detailed per-day plans, including weather forecasts, places to eat, packing suggestions, and a budget breakdown.
-                You MUST suggest actual places to visit, actual hotels to stay, and actual restaurants to go to.
-                This itinerary should cover all aspects of the trip, from arrival to departure, integrating the city guide information with practical travel logistics.
-                Your final answer MUST be a complete expanded travel plan, formatted as markdown, encompassing a daily schedule, anticipated weather conditions, recommended clothing and items to pack, and a detailed budget, ensuring THE BEST TRIP EVER.
-                Be specific and give a reason why you picked each place, what makes them special!
-                **Parameters**:
-                - City: {city}
-                - Travel Dates: {travel_dates}
+                ***Task**: Build the full day-by-day itinerary for the selected
+                city, covering EXACTLY the travel dates: {travel_dates}.*
+
+                Expand the city guide (see context) into one plan that has an
+                entry for each day of the trip — count the days from the dates
+                above; do not assume any fixed number of days. For each day list
+                real, verified attractions, restaurants, and a suggested hotel,
+                with a one-line reason for each pick.
+
+                Also include:
+                - **Weather**: report it only from a search result for this city
+                  and these dates/season. State temperatures in °C consistently
+                  (you may add °F in brackets). If you cannot verify a forecast,
+                  give a short "typical for the season" note instead of inventing
+                  specific numbers.
+                - **Packing list** suited to that weather.
+                - **Budget**: a markdown table with a category column and an
+                  amount column. Use ONE consistent currency symbol throughout
+                  (e.g. €120, never a bare 120), and include a total.
+
+                **Trip parameters:**
+                - Travel dates: {travel_dates}
                 - Interests: {interests}
 
-                **Note**: {self.__tip_section()}
+                {_GROUNDING_RULES}
 
-                Make sure to use the most recent data possible, and consider current travel restrictions or requirements.
+                **Note**: {self.__tip_section()}
                 """
             ),
-            expected_output=(
-                "A complete expanded travel plan, formatted as markdown, encompassing a "
-                "daily schedule, anticipated weather conditions, recommended clothing "
-                "and items to pack, and a detailed budget, ensuring THE BEST TRIP EVER."
-            ),
+            expected_output=dedent(
+                """
+                A complete markdown travel plan for the selected city that starts
+                directly with the plan (no preamble): a per-day schedule covering
+                exactly the travel dates, a weather summary in °C, a packing list,
+                and a budget table in one consistent currency. Every place is real
+                and in the selected city; any links are copied from search results.
+                """
+            ).strip(),
             agent=agent,
+            context=context if context is not None else [],
         )
