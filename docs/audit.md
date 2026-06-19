@@ -70,9 +70,9 @@ friendly messages on failure instead of raising.
 
 The project was a flat set of scripts with no package, not importable or installable.
 
-**Fixed:** moved to a `src/trip_planner/` package (src layout) with `config.py`, `crew.py`,
+**Fixed:** moved to a `src/voyagent/` package (src layout) with `config.py`, `crew.py`,
 `__main__.py`, and a `tools/` subpackage. `pyproject.toml` declares the package and a
-`trip-planner` console script; a `requirements.txt` was added for pip users.
+`voyagent` console script; a `requirements.txt` was added for pip users.
 
 ### 8. Cosmetic typos (Cosmetic)
 

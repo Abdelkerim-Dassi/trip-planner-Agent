@@ -5,9 +5,9 @@
 From the project root (inside your Poetry/venv shell):
 
 ```bash
-python -m trip_planner
+python -m voyagent
 # or, after `poetry install`, the console script:
-trip-planner
+voyagent
 ```
 
 The CLI first validates your API keys, then prompts for four inputs:
@@ -49,6 +49,6 @@ A typical run produces a markdown plan containing:
 
 - Runs make multiple LLM calls and several web searches, so a full plan can take a few
   minutes and will consume OpenAI + Serper credits.
-- To save the output, redirect or copy it: `python -m trip_planner | tee trip-plan.md`
+- To save the output, redirect or copy it: `python -m voyagent | tee trip-plan.md`
   (the verbose agent logs are also captured this way).
 - Give specific, comma-separated interests for sharper recommendations.

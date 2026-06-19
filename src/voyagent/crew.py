@@ -1,9 +1,28 @@
 """Crew orchestration: wires the three agents to their tasks and runs them."""
 
+import os
+import time
+
 from crewai import Crew
 
-from trip_planner.agents import TravelAgents
-from trip_planner.tasks import TravelTasks
+from voyagent import config
+from voyagent.agents import TravelAgents
+from voyagent.tasks import TravelTasks
+
+
+def _throttled(step_callback, delay_seconds):
+    """Wrap a step callback so each agent step pauses ``delay_seconds``.
+
+    Groq's free tier caps tokens-per-minute; pacing the ReAct loop keeps a run
+    under that ceiling instead of relying solely on retry-after backoff.
+    """
+
+    def _callback(step_output=None):
+        if step_callback is not None:
+            step_callback(step_output)
+        time.sleep(delay_seconds)
+
+    return _callback
 
 
 class TripCrew:
@@ -31,6 +50,13 @@ class TripCrew:
         plan_itinerary = tasks.plan_itinerary(
             concierge, self.cities, self.date_range, self.interests
         )
+
+        # On Groq's free tier, pace each step to stay under the tokens-per-minute
+        # cap. GROQ_STEP_DELAY_SECONDS=0 disables it (e.g. on a paid tier).
+        if config.PROVIDER == "groq":
+            delay = float(os.environ.get("GROQ_STEP_DELAY_SECONDS", "5"))
+            if delay > 0:
+                step_callback = _throttled(step_callback, delay)
 
         # Tasks run in logical order: pick the city, learn about it, then plan.
         # Optional callbacks let a UI observe progress: step_callback fires on

@@ -1,4 +1,4 @@
-"""Streamlit web UI for the Trip Planner Agent.
+"""Streamlit web UI for the Voyagent.
 
 Run with:  streamlit run streamlit_app.py
 
@@ -22,10 +22,10 @@ _SRC = Path(__file__).resolve().parent / "src"
 if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from trip_planner.config import MissingConfigError, validate_env
-from trip_planner.crew import TripCrew
+from voyagent.config import MissingConfigError, validate_env
+from voyagent.crew import TripCrew
 
-st.set_page_config(page_title="AI Trip Planner", page_icon="🧳", layout="centered")
+st.set_page_config(page_title="Voyagent", page_icon="🧳", layout="centered")
 
 
 def _describe(obj) -> str:
@@ -61,7 +61,7 @@ def _run_crew(crew: TripCrew, events: "queue.Queue", holder: dict) -> None:
         events.put(None)  # sentinel: worker finished
 
 
-st.title("🧳 AI Trip Planner")
+st.title("🧳 Voyagent")
 st.caption("A CrewAI travel crew picks your city, researches it, and builds a full itinerary.")
 
 # Fail fast with a readable message if API keys are missing.

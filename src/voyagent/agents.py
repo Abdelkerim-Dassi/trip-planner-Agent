@@ -1,12 +1,12 @@
 """Agent definitions for the trip-planning crew.
 
-All three agents share the model configured in :mod:`trip_planner.config`.
+All three agents share the model configured in :mod:`voyagent.config`.
 """
 
 from crewai import Agent
 
-from trip_planner.config import build_llm
-from trip_planner.tools import CalculatorTool, SearchTools
+from voyagent.config import build_llm
+from voyagent.tools import CalculatorTool, SearchTools
 
 
 class TravelAgents:

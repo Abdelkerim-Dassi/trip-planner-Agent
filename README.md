@@ -1,4 +1,4 @@
-# Trip Planner Agent
+# Voyagent
 
 A multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). Give it an origin city, candidate destinations, a date range, and your interests — three specialized agents collaborate to pick the best city, dig up local insights, and return a complete day-by-day itinerary with budget and packing notes.
 
@@ -12,7 +12,7 @@ Three CrewAI agents run sequentially, each with its own role, tools, and reasoni
 | **Local Expert** | Acts as a knowledgeable resident of the selected city | Gathers attractions, customs, hidden gems, and seasonal events. Uses web search. |
 | **Travel Concierge** | Builds the final deliverable | Produces a detailed itinerary with daily schedules, budget breakdown, and a packing list. Uses web search + calculator. |
 
-All three agents share a single `gpt-4o-mini` model configured in `src/trip_planner/config.py`. They are coordinated by a `Crew` defined in `src/trip_planner/crew.py`, which runs three tasks in logical order: `identify_city` → `gather_city_info` → `plan_itinerary`.
+All three agents share a single `gpt-4o-mini` model configured in `src/voyagent/config.py`. They are coordinated by a `Crew` defined in `src/voyagent/crew.py`, which runs three tasks in logical order: `identify_city` → `gather_city_info` → `plan_itinerary`.
 
 ## Tech stack
 
@@ -28,8 +28,8 @@ All three agents share a single `gpt-4o-mini` model configured in `src/trip_plan
 ```
 .
 ├── src/
-│   └── trip_planner/
-│       ├── __main__.py           # CLI entry point (python -m trip_planner)
+│   └── voyagent/
+│       ├── __main__.py           # CLI entry point (python -m voyagent)
 │       ├── crew.py               # TripCrew — Crew orchestration
 │       ├── agents.py             # 3 agent definitions (role, goal, tools, LLM)
 │       ├── tasks.py              # Task definitions (identify_city, gather_city_info, plan_itinerary)
@@ -84,9 +84,9 @@ SERPER_API_KEY=...
 ### 4. Run
 
 ```bash
-python -m trip_planner
+python -m voyagent
 # or, after `poetry install`:
-trip-planner
+voyagent
 ```
 
 You'll be prompted for four inputs:
@@ -124,7 +124,7 @@ A typical run produces something like:
 
 ## Configuration
 
-The model is configured in one place — `src/trip_planner/config.py` (`MODEL_NAME`, defaulting to `gpt-4o-mini`). You can override it without editing code via the `TRIP_PLANNER_MODEL` and `TRIP_PLANNER_TEMPERATURE` environment variables. To extend the toolset, add a new tool in `src/trip_planner/tools/` and attach it to the relevant agent in `agents.py`. See [docs/configuration.md](docs/configuration.md) for details.
+The model is configured in one place — `src/voyagent/config.py` (`MODEL_NAME`, defaulting to `gpt-4o-mini`). You can override it without editing code via the `VOYAGENT_MODEL` and `VOYAGENT_TEMPERATURE` environment variables. To extend the toolset, add a new tool in `src/voyagent/tools/` and attach it to the relevant agent in `agents.py`. See [docs/configuration.md](docs/configuration.md) for details.
 
 ## License
 

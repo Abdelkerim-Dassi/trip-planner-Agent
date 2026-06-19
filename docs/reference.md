@@ -1,13 +1,13 @@
 # Agents, Tasks & Tools reference
 
-A per-component reference for the `trip_planner` package.
+A per-component reference for the `voyagent` package.
 
 ## Configuration — `config.py`
 
 The single source of truth for environment and model setup.
 
-- `MODEL_NAME` — chat model name (default `gpt-4o-mini`; override with `TRIP_PLANNER_MODEL`).
-- `MODEL_TEMPERATURE` — sampling temperature (default `0.2`; override with `TRIP_PLANNER_TEMPERATURE`).
+- `MODEL_NAME` — chat model name (default `gpt-4o-mini`; override with `VOYAGENT_MODEL`).
+- `MODEL_TEMPERATURE` — sampling temperature (default `0.2`; override with `VOYAGENT_TEMPERATURE`).
 - `REQUIRED_KEYS` — `("OPENAI_API_KEY", "SERPER_API_KEY")`.
 - `validate_env()` — raises `MissingConfigError` listing any missing keys.
 - `build_llm()` — returns a `ChatOpenAI` configured with the model + temperature above

@@ -7,8 +7,11 @@ import requests
 from crewai.tools import tool
 
 SEARCH_URL = "https://google.serper.dev/search"
-TOP_RESULTS_TO_RETURN = 5
+TOP_RESULTS_TO_RETURN = 3
 REQUEST_TIMEOUT_SECONDS = 15
+#: Cap snippet length so search results don't balloon the LLM context (which
+#: matters on token-per-minute-limited free tiers like Groq's).
+MAX_SNIPPET_CHARS = 200
 
 
 class SearchTools:
@@ -44,12 +47,13 @@ class SearchTools:
         formatted = []
         for result in results[:TOP_RESULTS_TO_RETURN]:
             try:
+                snippet = result["snippet"][:MAX_SNIPPET_CHARS]
                 formatted.append(
                     "\n".join(
                         [
                             f"Title: {result['title']}",
                             f"Link: {result['link']}",
-                            f"Snippet: {result['snippet']}",
+                            f"Snippet: {snippet}",
                             "\n-----------------",
                         ]
                     )

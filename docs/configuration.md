@@ -2,11 +2,11 @@
 
 ## Changing the LLM
 
-The model is configured in **one place** — `src/trip_planner/config.py`:
+The model is configured in **one place** — `src/voyagent/config.py`:
 
 ```python
-MODEL_NAME = os.environ.get("TRIP_PLANNER_MODEL", "gpt-4o-mini")
-MODEL_TEMPERATURE = float(os.environ.get("TRIP_PLANNER_TEMPERATURE", "0.2"))
+MODEL_NAME = os.environ.get("VOYAGENT_MODEL", "gpt-4o-mini")
+MODEL_TEMPERATURE = float(os.environ.get("VOYAGENT_TEMPERATURE", "0.2"))
 ```
 
 `config.build_llm()` returns a single `ChatOpenAI` instance that all three agents share, so
@@ -14,7 +14,7 @@ you never edit per-agent model settings.
 
 To change the model, either:
 
-- Set an environment variable (no code change): `TRIP_PLANNER_MODEL=gpt-4o`, or
+- Set an environment variable (no code change): `VOYAGENT_MODEL=gpt-4o`, or
 - Edit `MODEL_NAME` in `config.py`.
 
 To use a non-OpenAI, LangChain-compatible chat model, change the implementation of
@@ -22,7 +22,7 @@ To use a non-OpenAI, LangChain-compatible chat model, change the implementation 
 
 ## Adding a tool
 
-1. Create a function in `src/trip_planner/tools/` decorated with CrewAI's `@tool("name")`:
+1. Create a function in `src/voyagent/tools/` decorated with CrewAI's `@tool("name")`:
 
    ```python
    from crewai.tools import tool
@@ -37,7 +37,7 @@ To use a non-OpenAI, LangChain-compatible chat model, change the implementation 
 2. Export it from `tools/__init__.py` and attach it to the relevant agent in `agents.py`:
 
    ```python
-   from trip_planner.tools import SearchTools, WeatherTools
+   from voyagent.tools import SearchTools, WeatherTools
 
    tools=[SearchTools.search_internet, WeatherTools.forecast]
    ```
@@ -64,5 +64,5 @@ See [Setup](setup.md). The code reads:
 | `OPENAI_API_KEY` | agents (`ChatOpenAI`) | Yes |
 | `SERPER_API_KEY` | `SearchTools.search_internet` | Yes |
 | `OPENAI_ORGANIZATION_ID` | OpenAI client (optional) | No |
-| `TRIP_PLANNER_MODEL` | model selection | No (default `gpt-4o-mini`) |
-| `TRIP_PLANNER_TEMPERATURE` | sampling temperature | No (default `0.2`) |
+| `VOYAGENT_MODEL` | model selection | No (default `gpt-4o-mini`) |
+| `VOYAGENT_TEMPERATURE` | sampling temperature | No (default `0.2`) |

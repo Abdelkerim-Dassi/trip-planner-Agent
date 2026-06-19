@@ -44,8 +44,8 @@ OPENAI_ORGANIZATION_ID=org-...   # optional
 SERPER_API_KEY=...               # required for web search
 
 # Optional overrides:
-# TRIP_PLANNER_MODEL=gpt-4o-mini
-# TRIP_PLANNER_TEMPERATURE=0.2
+# VOYAGENT_MODEL=gpt-4o-mini
+# VOYAGENT_TEMPERATURE=0.2
 ```
 
 Both `OPENAI_API_KEY` and `SERPER_API_KEY` are required. `validate_env()` runs at startup and
@@ -63,7 +63,7 @@ exits with a clear message if either is missing — no deep `KeyError` mid-run.
 ## 4. Verify
 
 ```bash
-python -m trip_planner
+python -m voyagent
 ```
 
 If a required key is missing you'll see a `Configuration error:` message and a non-zero exit.

@@ -1,14 +1,14 @@
 # Architecture
 
-The Trip Planner Agent is a **sequential multi-agent system** orchestrated by CrewAI. Three
+The Voyagent is a **sequential multi-agent system** orchestrated by CrewAI. Three
 agents, each with a distinct role and toolset, run as a `Crew` to transform raw trip inputs
 into a finished travel plan.
 
 ## Package layout
 
 ```
-src/trip_planner/
-  __main__.py    CLI entry point. Validates env, collects input, runs the crew. (python -m trip_planner)
+src/voyagent/
+  __main__.py    CLI entry point. Validates env, collects input, runs the crew. (python -m voyagent)
   crew.py        TripCrew — wires agents to tasks and runs crew.kickoff().
   agents.py      TravelAgents — factory class returning three configured CrewAI Agents.
   tasks.py       TravelTasks — factory class returning three CrewAI Tasks (prompts).
@@ -27,7 +27,7 @@ src/trip_planner/
 | `travel_concierge` | **Travel Concierge** — builds the final itinerary, budget, and packing list | `search_internet`, `calculate` | shared `gpt-4o-mini` |
 
 All three agents share a single model instance built once by `config.build_llm()`. Change the
-model in one place (`config.py`, or the `TRIP_PLANNER_MODEL` env var).
+model in one place (`config.py`, or the `VOYAGENT_MODEL` env var).
 
 ## The three tasks
 

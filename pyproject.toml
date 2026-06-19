@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "trip-planner-crew"
+name = "voyagent"
 version = "0.1.0"
-description = "AI trip planner"
+description = "AI travel planner"
 authors = ["Abdelkerim Dassi"]
-packages = [{ include = "trip_planner", from = "src" }]
+packages = [{ include = "voyagent", from = "src" }]
 
 [tool.poetry.scripts]
-trip-planner = "trip_planner.__main__:main"
+voyagent = "voyagent.__main__:main"
 
 [tool.poetry.dependencies]
 python = ">=3.10.0,<3.12"
