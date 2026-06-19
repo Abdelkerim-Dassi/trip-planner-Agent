@@ -100,6 +100,18 @@ Enter interests: food, architecture, beach
 
 The crew runs (with `verbose=True`, so you'll see each agent's reasoning), and the final trip plan prints to the terminal.
 
+### Web UI
+
+A Streamlit web interface wraps the same crew. After installing dependencies (`pip install -r requirements.txt`, which includes Streamlit) and configuring your `.env` with `OPENAI_API_KEY` and `SERPER_API_KEY`:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Fill in origin, candidate destinations, travel dates, and interests, then click **Plan my trip**. Live agent progress streams as the crew works (~1-3 minutes), then the final markdown plan renders with a button to download it as `trip-plan.md`.
+
+Poetry users can add the dependency with `poetry add streamlit`.
+
 ## Example output
 
 A typical run produces something like:

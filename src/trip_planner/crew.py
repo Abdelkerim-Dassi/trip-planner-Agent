@@ -13,7 +13,7 @@ class TripCrew:
         self.date_range = date_range
         self.interests = interests
 
-    def run(self):
+    def run(self, step_callback=None, task_callback=None):
         agents = TravelAgents()
         tasks = TravelTasks()
 
@@ -33,10 +33,14 @@ class TripCrew:
         )
 
         # Tasks run in logical order: pick the city, learn about it, then plan.
+        # Optional callbacks let a UI observe progress: step_callback fires on
+        # each agent step, task_callback when each of the three tasks finishes.
         crew = Crew(
             agents=[city_selector, local_expert, concierge],
             tasks=[identify_city, gather_city_info, plan_itinerary],
             verbose=True,
+            step_callback=step_callback,
+            task_callback=task_callback,
         )
 
         return crew.kickoff()

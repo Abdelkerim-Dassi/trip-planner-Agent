@@ -1,0 +1,126 @@
+"""Streamlit web UI for the Trip Planner Agent.
+
+Run with:  streamlit run streamlit_app.py
+
+Wraps the existing CrewAI ``TripCrew`` in a web form, streams live agent
+progress while the crew runs (~1-3 minutes), then renders the final markdown
+trip plan with a download button.
+"""
+
+from __future__ import annotations
+
+import queue
+import sys
+import threading
+from pathlib import Path
+
+import streamlit as st
+
+# Make the src-layout package importable even when it isn't pip-installed
+# (e.g. running `streamlit run streamlit_app.py` straight from a clone).
+_SRC = Path(__file__).resolve().parent / "src"
+if _SRC.is_dir() and str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+from trip_planner.config import MissingConfigError, validate_env
+from trip_planner.crew import TripCrew
+
+st.set_page_config(page_title="AI Trip Planner", page_icon="🧳", layout="centered")
+
+
+def _describe(obj) -> str:
+    """Turn a CrewAI step/task callback payload into a short readable line."""
+    for attr in ("raw", "output", "result", "description"):
+        value = getattr(obj, attr, None)
+        if value:
+            text = str(value).strip().replace("\n", " ")
+            return text[:240] + ("…" if len(text) > 240 else "")
+    text = str(obj).strip().replace("\n", " ")
+    return text[:240] + ("…" if len(text) > 240 else "")
+
+
+def _run_crew(crew: TripCrew, events: "queue.Queue", holder: dict) -> None:
+    """Worker thread: run the crew, pushing progress lines onto ``events``.
+
+    Only the queue and ``holder`` are touched here (never Streamlit APIs), so no
+    Streamlit script context is needed in this thread.
+    """
+
+    def step_callback(step) -> None:
+        events.put(f"🔧 {_describe(step)}")
+
+    def task_callback(task) -> None:
+        events.put(f"✅ Task complete — {_describe(task)}")
+
+    try:
+        result = crew.run(step_callback=step_callback, task_callback=task_callback)
+        holder["result"] = getattr(result, "raw", None) or str(result)
+    except Exception as exc:  # surfaced to the user in the main thread
+        holder["error"] = exc
+    finally:
+        events.put(None)  # sentinel: worker finished
+
+
+st.title("🧳 AI Trip Planner")
+st.caption("A CrewAI travel crew picks your city, researches it, and builds a full itinerary.")
+
+# Fail fast with a readable message if API keys are missing.
+try:
+    validate_env()
+except MissingConfigError as exc:
+    st.error(str(exc))
+    st.stop()
+
+with st.form("trip_form"):
+    origin = st.text_input("Origin", placeholder="Tunis")
+    cities = st.text_input(
+        "Candidate destinations (comma-separated)", placeholder="Lisbon, Porto, Barcelona"
+    )
+    travel_dates = st.text_input("Travel time range", placeholder="15 June - 22 June")
+    interests = st.text_input("Interests", placeholder="food, architecture, beach")
+    submitted = st.form_submit_button("Plan my trip ✨")
+
+if submitted:
+    if not all([origin.strip(), cities.strip(), travel_dates.strip(), interests.strip()]):
+        st.warning("Please fill in all four fields.")
+        st.stop()
+
+    crew = TripCrew(origin, cities, travel_dates, interests)
+    events: "queue.Queue" = queue.Queue()
+    holder: dict = {}
+
+    worker = threading.Thread(target=_run_crew, args=(crew, events, holder), daemon=True)
+    worker.start()
+
+    log_lines: list[str] = []
+    with st.status("Planning your trip… this can take 1-3 minutes.", expanded=True) as status:
+        log_area = st.empty()
+        done = False
+        while not done:
+            try:
+                event = events.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            if event is None:
+                done = True
+            else:
+                log_lines.append(event)
+                log_area.markdown("\n\n".join(log_lines[-12:]))
+
+        if holder.get("error") is not None:
+            status.update(label="Trip planning failed.", state="error")
+        else:
+            status.update(label="Trip plan ready!", state="complete")
+
+    if holder.get("error") is not None:
+        st.error(f"Something went wrong while planning your trip:\n\n{holder['error']}")
+    else:
+        plan = holder.get("result", "")
+        st.subheader("Your trip plan")
+        st.markdown(plan)
+        st.download_button(
+            "Download plan (Markdown)",
+            data=plan,
+            file_name="trip-plan.md",
+            mime="text/markdown",
+        )
