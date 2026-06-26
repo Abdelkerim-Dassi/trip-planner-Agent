@@ -114,7 +114,11 @@ st.html(
 _PHASES = [
     ("✈️", "Choosing your destination"),
     ("🗺️", "Researching the city"),
+    ("✨", "Uncovering hidden gems"),
     ("🧳", "Crafting your itinerary"),
+    ("🚇", "Sorting out the logistics"),
+    ("🔍", "Refining every detail"),
+    ("📖", "Polishing your plan"),
 ]
 # Generic, content-free heartbeat lines so the user sees motion without ever
 # seeing the agents' raw reasoning.

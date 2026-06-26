@@ -73,28 +73,67 @@ class TripCrew:
         # Each agent owns the task that matches its role.
         city_selector = agents.city_selection_agent()
         local_expert = agents.local_expert()
+        curator = agents.experience_curator()
         concierge = agents.travel_concierge()
+        logistics = agents.logistics_planner()
+        critic = agents.itinerary_critic()
+        editor = agents.final_editor()
 
-        # The selected city flows forward via task context, not by re-passing the
-        # candidate list: gather_city_info reads identify_city's output, and
-        # plan_itinerary reads the guide. This stops downstream agents from
-        # planning a trip to the wrong (or origin) city.
+        # Each step's output flows forward via task context (not by re-passing raw
+        # inputs), so every downstream agent works from the verified result of the
+        # previous step. The selected city is carried by identify_city's output,
+        # which keeps the rest of the crew from planning the wrong (or origin) city.
+        #
+        # The plan is progressively refined: the concierge drafts it, the logistics
+        # planner makes it easy to follow, the critic corrects and tightens it, and
+        # the editor polishes the verified result into the final document. Each of
+        # those steps returns the *complete* plan, so the next can refine it whole.
         identify_city = tasks.identify_city(
             city_selector, self.origin, self.cities, self.date_range, self.interests
         )
         gather_city_info = tasks.gather_city_info(
             local_expert, self.date_range, self.interests, context=[identify_city]
         )
-        plan_itinerary = tasks.plan_itinerary(
-            concierge, self.date_range, self.interests, context=[gather_city_info]
+        curate_experiences = tasks.curate_experiences(
+            curator, self.date_range, self.interests, context=[gather_city_info]
         )
+        plan_itinerary = tasks.plan_itinerary(
+            concierge,
+            self.date_range,
+            self.interests,
+            context=[gather_city_info, curate_experiences],
+        )
+        add_logistics = tasks.add_logistics(
+            logistics, self.date_range, context=[plan_itinerary]
+        )
+        critique_itinerary = tasks.critique_itinerary(
+            critic, self.date_range, context=[add_logistics]
+        )
+        polish_plan = tasks.polish_plan(editor, context=[critique_itinerary])
 
-        # Tasks run in logical order: pick the city, learn about it, then plan.
-        # Optional callbacks let a UI observe progress: step_callback fires on
-        # each agent step, task_callback when each of the three tasks finishes.
+        # Tasks run in logical order: pick the city, learn about it, curate the
+        # standout experiences, draft the plan, add logistics, critique/correct,
+        # then polish. Optional callbacks let a UI observe progress: step_callback
+        # fires on each agent step, task_callback when each task finishes.
         crew = Crew(
-            agents=[city_selector, local_expert, concierge],
-            tasks=[identify_city, gather_city_info, plan_itinerary],
+            agents=[
+                city_selector,
+                local_expert,
+                curator,
+                concierge,
+                logistics,
+                critic,
+                editor,
+            ],
+            tasks=[
+                identify_city,
+                gather_city_info,
+                curate_experiences,
+                plan_itinerary,
+                add_logistics,
+                critique_itinerary,
+                polish_plan,
+            ],
             verbose=False,
             step_callback=step_callback,
             task_callback=task_callback,
