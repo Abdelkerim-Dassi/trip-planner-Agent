@@ -1,4 +1,4 @@
-"""Crew orchestration: wires the three agents to their tasks and runs them."""
+"""Crew orchestration: wires the seven agents to their tasks and runs them."""
 
 import os
 import time
@@ -41,11 +41,14 @@ def _is_transient_tool_error(exc) -> bool:
 
 
 class TripCrew:
-    def __init__(self, origin, cities, date_range, interests):
+    def __init__(self, origin, cities, date_range, interests, inspiration=""):
         self.origin = origin
         self.cities = cities
         self.date_range = date_range
         self.interests = interests
+        # Optional verified places the traveller liked (e.g. from TikTok), which
+        # the Experience Curator weighs alongside its own research.
+        self.inspiration = inspiration
 
     def run(self, step_callback=None, task_callback=None):
         # On Groq's free tier, pace each step to stay under the tokens-per-minute
@@ -95,7 +98,11 @@ class TripCrew:
             local_expert, self.date_range, self.interests, context=[identify_city]
         )
         curate_experiences = tasks.curate_experiences(
-            curator, self.date_range, self.interests, context=[gather_city_info]
+            curator,
+            self.date_range,
+            self.interests,
+            context=[gather_city_info],
+            inspiration=self.inspiration,
         )
         plan_itinerary = tasks.plan_itinerary(
             concierge,

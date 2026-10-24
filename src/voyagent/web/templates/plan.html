@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Trip plan from {{ plan.request.origin }} · {{ plan.request.travel_dates }} · Voyagent{% endblock %}
+{% block description %}A verified day-by-day trip plan ({{ plan.request.cities }}) made with Voyagent, the AI travel crew.{% endblock %}
+{% block content %}
+<header class="hero hero-small">
+  <span class="badge">✈️ Shared trip plan</span>
+  <h1>{{ plan.request.cities }}</h1>
+  <p>From {{ plan.request.origin }} · {{ plan.request.travel_dates }} · loves {{ plan.request.interests }}</p>
+</header>
+<article class="card plan" id="plan"></article>
+<div class="actions">
+  <a class="button" href="/">✨ Plan your own trip</a>
+  <button type="button" onclick="window.print()">🖨️ Print / PDF</button>
+</div>
+<script type="application/json" id="plan-data">{{ plan.result | tojson }}</script>
+{% endblock %}
+{% block scripts %}
+<script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const md = JSON.parse(document.getElementById("plan-data").textContent);
+    document.getElementById("plan").innerHTML = DOMPurify.sanitize(marked.parse(md));
+  });
+</script>
+{% endblock %}

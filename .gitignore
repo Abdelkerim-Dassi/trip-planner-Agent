@@ -5,3 +5,6 @@
 
 #Cache folders
 __pycache__/
+
+# Saved shared plans (web app)
+data/

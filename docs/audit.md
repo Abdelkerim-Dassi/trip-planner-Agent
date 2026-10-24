@@ -102,11 +102,50 @@ After the original audit, the project was extended and rebranded:
   (secrets copied into the environment at startup).
 - **Dependencies.** `requirements.txt` switched to `crewai[litellm]` and **dropped the unused
   `unstructured` and `pyowm`** packages.
+- **Four refinement agents.** The crew grew from three to seven agents: an Experience Curator
+  (after the Local Expert) and, after the Travel Concierge, a Logistics Planner, an Itinerary
+  Critic, and a tool-less Final Editor bound by `_EDITING_RULES` (no new facts).
+
+### 2026-10-25 — Web app, TikTok discovery, MCP server
+
+- **Seven-agent crew, documented.** `agents.py`, `tasks.py`, and `crew.py` run seven sequential
+  agents (City Selection Expert, Local Expert, Experience Curator, Travel Concierge, Logistics
+  Planner, Itinerary Critic, Final Editor); the docs no longer describe three agents/tasks.
+  `TripCrew` takes an optional `inspiration` argument, passed to the curator task and rendered by
+  `_inspiration_section()` in `tasks.py` with a reality check for each place.
+- **Streamlit removed.** `streamlit_app.py` and `.streamlit/` were deleted. They are replaced by
+  a **FastAPI web app** in `src/voyagent/web/` (`python -m voyagent.web`): `/` planner page,
+  `/p/{id}` server-rendered share page, `/api/discover`, `/api/plans`, `/api/plans/{id}`,
+  `/healthz`, OpenAPI docs at `/api/docs`, and the MCP server mounted at `/mcp`. The front end
+  is Jinja2 templates plus vanilla JS with a Leaflet map (no build step). Plan runs go through
+  `jobs.PlanJob` (background thread, seven abstracted `PHASES`), capped by
+  `VOYAGENT_MAX_ACTIVE_PLANS`; finished plans are saved under `VOYAGENT_DATA_DIR`.
+- **TikTok discovery** (`social.py`): Serper search of `site:tiktok.com` → LLM extracts the named
+  places (LiteLLM JSON mode, `config.litellm_model()`) → Nominatim verification in the
+  destination's country → spots ranked by video mentions, each linked to its videos.
+  `spots_from_links` handles pasted links. No scraping and no video downloads.
+- **New grounded modules.** `serper.py` (shared, per-query cached Serper client; the agents'
+  `search_tools.py` now uses it), `places.py` (OpenStreetMap Nominatim verification with a
+  ~1 req/s throttle, caching, and distances), `travel_info.py` (`typical_weather` from the
+  Open-Meteo archive, `prayer_times` from AlAdhan, `transfer_options` via Serper).
+- **MCP server** (`mcp_server.py`): MCP SDK 2.x `MCPServer` with seven tools
+  (`trending_spots`, `spots_from_tiktok_links`, `verify_place`, `typical_weather`,
+  `prayer_times`, `transfer_options`, `plan_trip`), over stdio or `--http`, and at `/mcp` in the
+  web app with DNS-rebinding protection (`SPACE_HOST`, `VOYAGENT_PUBLIC_HOSTS`).
+- **Hosting.** A `Dockerfile` runs the web app on port 7860 for Hugging Face Spaces (Docker SDK)
+  or any container host. New env vars: `VOYAGENT_MAX_ACTIVE_PLANS`, `VOYAGENT_SUPPORT_URL`,
+  `VOYAGENT_DATA_DIR`, `VOYAGENT_PUBLIC_HOSTS`, `VOYAGENT_LANGUAGE` (plus `VOYAGENT_USER_AGENT`,
+  `HOST`, `PORT`).
+- **Dependencies.** `streamlit` removed from `requirements.txt`; `fastapi`, `uvicorn[standard]`,
+  `jinja2`, and `mcp>=2.3,<3` added to `requirements.txt` and `pyproject.toml`, which also gained the
+  `voyagent-web` and `voyagent-mcp` console scripts. `poetry.lock` has **not** been regenerated
+  yet — Poetry users must run `poetry lock` first.
 
 ## Remaining suggestions (not yet done)
 
-- Add automated tests (e.g. for the calculator evaluator, `validate_env`, and provider selection
-  in `build_llm`).
-- Add a dedicated weather tool (add the weather SDK of your choice as a dependency).
+- Add automated tests (e.g. for the calculator evaluator, `validate_env`, provider selection
+  in `build_llm`, the web API, and the TikTok/place-verification pipeline with mocked HTTP).
+- Expose the grounded lookups (`travel_info.typical_weather`, `places.verify_place`) to the
+  crew's agents as CrewAI tools; today only the MCP server uses them.
 - Reconcile `pyproject.toml` with `requirements.txt` (it still lists the now-unused `unstructured`
-  and `pyowm`).
+  and `pyowm`) and regenerate `poetry.lock`.

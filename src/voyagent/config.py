@@ -68,6 +68,12 @@ def validate_env() -> None:
         )
 
 
+def litellm_model() -> str:
+    """The configured model as a LiteLLM model id, for one-off completions
+    outside the crew (e.g. extracting places from TikTok captions)."""
+    return f"groq/{MODEL_NAME}" if PROVIDER == "groq" else MODEL_NAME
+
+
 def build_llm():
     """Build the shared chat model for the agents.
 

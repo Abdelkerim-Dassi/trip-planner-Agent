@@ -47,6 +47,23 @@ _EDITING_RULES = dedent(
 ).strip()
 
 
+def _inspiration_section(inspiration: str) -> str:
+    """Prompt block for places the traveller saw and liked (e.g. on TikTok)."""
+    if not inspiration.strip():
+        return ""
+    return (
+        "**The traveller's own inspiration** (places they saw on social media; "
+        "each one has been confirmed to exist on OpenStreetMap):\n"
+        f"{inspiration.strip()}\n\n"
+        "Include the ones that are in or within a reasonable day trip of the "
+        "selected city and suit the dates and season. For each one you include, "
+        "add an honest reality check a seasoned travel advisor would give: "
+        "travel time from the city, whether it is worth it in this season, and "
+        "the best time of day to avoid crowds. Skip the ones that don't fit and "
+        "say in one line why, so the traveller isn't left wondering."
+    )
+
+
 class TravelTasks:
     def __tip_section(self) -> str:
         return "If you do your BEST WORK, I'll give you a $10,000 commission!"
@@ -121,7 +138,9 @@ class TravelTasks:
             context=context if context is not None else [],
         )
 
-    def curate_experiences(self, agent, travel_dates, interests, context=None) -> Task:
+    def curate_experiences(
+        self, agent, travel_dates, interests, context=None, inspiration=""
+    ) -> Task:
         return Task(
             description=dedent(
                 f"""
@@ -136,6 +155,8 @@ class TravelTasks:
                 For each experience give: a short name, the neighbourhood/area,
                 one sentence on why it is special, and the best time to do it
                 (time of day or day of week) if relevant.
+
+                {_inspiration_section(inspiration)}
 
                 **Trip parameters:**
                 - Travel dates: {travel_dates}

@@ -1,53 +1,63 @@
 # Voyagent
 
-A multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). Give it an origin city, candidate destinations, a date range, and your interests — three specialized agents collaborate to pick the best city, dig up local insights, and return a complete day-by-day itinerary with budget and packing notes. It runs **for free on Groq's API** (or on OpenAI), via a CLI or a polished Streamlit web app.
+A multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). Give it an origin, candidate destinations, dates and interests, and seven specialized agents pick the best city, research it, and return a verified day-by-day itinerary with logistics, budget and packing notes.
+
+What makes it different:
+
+- **TikTok to trip plan.** Voyagent reads what travellers share on TikTok about your destination, or the TikTok links you saved, pulls out the places they mention, keeps only the ones OpenStreetMap confirms exist, and puts them on a map. You keep the ones you like and the crew builds them into your plan, with a travel agent's reality check (distance, season, crowds).
+- **Works inside Claude and ChatGPT.** Voyagent is also an [MCP](https://modelcontextprotocol.io) server with grounded tools: trending TikTok spots, place verification, typical weather, prayer times and getting-there options.
+- **Free to run.** Groq's free LLM tier (or OpenAI), Serper's free search tier, and free open data (OpenStreetMap, Open-Meteo, AlAdhan). Hosts free on Hugging Face Spaces.
 
 ## How it works
 
-Three CrewAI agents run sequentially, each with its own role, tools, and reasoning loop. The city chosen in step 1 is passed forward as task **context**, so the downstream agents research and plan for the *selected* city:
+Seven CrewAI agents run in sequence. Each step's output is passed forward as task **context**, so every agent works from the verified result of the one before:
 
-| Agent | Role | What it does |
+| # | Agent | What it does |
 |---|---|---|
-| **City Selection Expert** | Analyzes travel data across candidate destinations | Weighs weather, season, and pricing to recommend the best city — chosen **only** from the candidate list. Uses web search + calculator. |
-| **Local Expert** | Acts as a knowledgeable resident of the selected city | Gathers attractions, customs, hidden gems, and seasonal events, verified via search. Uses web search. |
-| **Travel Concierge** | Builds the final deliverable | Produces a day-by-day itinerary (matching your exact dates), budget breakdown, and packing list. Uses web search + calculator. |
+| 1 | **City Selection Expert** | Picks the best city **from your candidates** for the dates and interests (weather, events, prices). |
+| 2 | **Local Expert** | Builds a guide: attractions, neighbourhoods, customs, food, events. |
+| 3 | **Experience Curator** | Surfaces signature experiences and hidden gems, and weighs the TikTok spots you kept. |
+| 4 | **Travel Concierge** | Drafts the day-by-day plan for your exact dates, with weather, packing list and budget. |
+| 5 | **Logistics Planner** | Adds getting around, transfers and booking notes. |
+| 6 | **Itinerary Critic** | Fixes pacing, geography and gaps. |
+| 7 | **Final Editor** | Polishes the verified plan into one document (no new facts allowed). |
 
-The agents are told to **ground every claim in the search tool** — only real, in-country places; no invented names; links only when copied verbatim from a result; weather in °C; consistent currency. They're coordinated by a `Crew` in `src/voyagent/crew.py` that runs three tasks in order: `identify_city` → `gather_city_info` → `plan_itinerary`.
+Every agent must ground claims in web search: only real places in the selected country, links only when copied from a result, °C, one currency. The model is provider-switchable in `src/voyagent/config.py`: OpenAI `gpt-4o-mini` by default, or Groq's free tier with `VOYAGENT_PROVIDER=groq`.
 
-All three agents share a single model from `src/voyagent/config.py`. The LLM is **provider-switchable**: OpenAI `gpt-4o-mini` by default, or Groq's free `llama-3.3-70b-versatile` by setting `VOYAGENT_PROVIDER=groq`.
+**TikTok discovery** (`src/voyagent/social.py`) never scrapes TikTok or downloads videos. It searches Google's index of TikTok videos through Serper, has the LLM extract the places named in the captions, verifies each with OpenStreetMap's Nominatim (in the destination's country only), and ranks them by how many videos mention them. Every spot links back to its videos.
 
 ## Tech stack
 
-- **Python 3.10/3.11** with **Poetry** (or `pip`) for dependency management
-- **CrewAI** (`crewai[litellm]`) — multi-agent orchestration; LiteLLM enables non-OpenAI providers like Groq
-- **LangChain + `langchain-openai`** — `ChatOpenAI` for the OpenAI provider
-- **Groq** — free-tier LLM via LiteLLM's `groq/` models
-- **Serper.dev** — web search tool (`tools/search_tools.py`)
-- **Custom calculator tool** — `tools/calculator_tools.py` (safe AST evaluator)
-- **Streamlit** — web UI (`streamlit_app.py`), deployable to Streamlit Community Cloud
-- **python-dotenv** — environment variable management
+- **Python 3.10/3.11**, `pip` or Poetry
+- **CrewAI** (`crewai[litellm]`) for the agents; LiteLLM for Groq
+- **FastAPI + Uvicorn** for the web app and JSON API; plain HTML/CSS/JS front end (no build step) with **Leaflet** maps on OpenStreetMap tiles
+- **MCP Python SDK** (`mcp` 2.x) for the Claude / ChatGPT integration
+- **Serper.dev** for web search; **OpenStreetMap Nominatim**, **Open-Meteo** and **AlAdhan** for free grounded data
+- **Docker** for hosting (Hugging Face Spaces free tier, or any container host)
 
 ## Repository structure
 
 ```
 .
-├── src/
-│   └── voyagent/
-│       ├── __main__.py           # CLI entry point (python -m voyagent)
-│       ├── crew.py               # TripCrew — orchestration, context wiring, Groq throttle/retry
-│       ├── agents.py             # 3 agent definitions (role, goal, tools, LLM, max_iter)
-│       ├── tasks.py              # Task prompts with grounding rules
-│       ├── config.py             # Env loading, provider/model selection, key validation
-│       └── tools/
-│           ├── search_tools.py   # Internet search tool (Serper.dev)
-│           └── calculator_tools.py  # Calculator tool for budget math
-├── streamlit_app.py              # Streamlit web UI
-├── .streamlit/config.toml        # Streamlit theme (Tropical Sunset palette)
-├── docs/                         # Project documentation
-├── .env.example                  # Template for required API keys
-├── requirements.txt              # pip dependencies (used by Streamlit Cloud)
-├── pyproject.toml                # Poetry project + dependencies
-└── poetry.lock
+├── src/voyagent/
+│   ├── __main__.py           # CLI entry point (python -m voyagent)
+│   ├── crew.py               # TripCrew: orchestration, context wiring, Groq throttle/retry
+│   ├── agents.py             # The 7 agent definitions
+│   ├── tasks.py              # Task prompts with grounding rules
+│   ├── config.py             # Env loading, provider/model selection, key validation
+│   ├── jobs.py               # Background plan jobs + progress phases (web + MCP)
+│   ├── social.py             # TikTok discovery: captions -> verified, ranked spots
+│   ├── places.py             # OpenStreetMap place verification and distances
+│   ├── travel_info.py        # Typical weather, prayer times, transfer options
+│   ├── serper.py             # Shared Serper search client (cached)
+│   ├── mcp_server.py         # Voyagent MCP server (stdio or HTTP)
+│   ├── tools/                # CrewAI tools: web search, calculator
+│   └── web/                  # FastAPI app, page templates, static JS/CSS
+├── Dockerfile                # Container for Hugging Face Spaces / any host
+├── docs/                     # Project documentation
+├── .env.example              # Template for required API keys
+├── requirements.txt          # pip dependencies (used by the Dockerfile)
+└── pyproject.toml            # Poetry project + dependencies
 ```
 
 ## Getting started
@@ -97,7 +107,7 @@ SERPER_API_KEY=...
 
 The app validates these at startup and fails fast with a clear message if a required key is missing.
 
-### 4. Run (CLI)
+### 4. Run the CLI
 
 ```bash
 python -m voyagent
@@ -116,28 +126,57 @@ Enter interests: food, architecture, beach
 
 The crew runs and the final trip plan prints to the terminal.
 
-### Web UI
-
-A Streamlit web interface wraps the same crew with a date-range picker and a clean, **abstracted progress display** (friendly phases like "Choosing your destination" — never the raw agent reasoning). After installing dependencies and configuring `.env`:
+### 5. Run the web app
 
 ```bash
-streamlit run streamlit_app.py
+python -m voyagent.web            # http://127.0.0.1:8000
 ```
 
-Fill in origin, candidate destinations, travel dates, and interests, then click **Plan my trip ✨**. A 3-phase progress bar runs while the crew works, then the final markdown plan renders in a styled card with a button to download it as `voyagent-trip-plan.md`.
+Fill in the trip form. With **Inspired by TikTok** on (or links pasted), Voyagent first shows the spots travellers love on a map, in about 30 seconds per destination. Untick what you'd skip, click **Build my itinerary**, and follow the crew's progress phase by phase. The finished plan has a **share link** (`/p/<id>`, a server-rendered page that previews well on social media), Markdown download and print-to-PDF.
 
-## Deploying to Streamlit Community Cloud
+The JSON API is documented at `/api/docs`.
 
-The app is deploy-ready (`requirements.txt` + the `src`-layout path handling in `streamlit_app.py`):
+### 6. Use Voyagent from Claude or ChatGPT (MCP)
 
-1. Push to GitHub, then on [share.streamlit.io](https://share.streamlit.io) create an app from this repo with **main file** `streamlit_app.py`.
-2. In **Advanced settings → Secrets**, add (TOML):
-   ```toml
-   VOYAGENT_PROVIDER = "groq"
-   GROQ_API_KEY = "gsk_..."
-   SERPER_API_KEY = "..."
+Voyagent's MCP tools: `trending_spots`, `spots_from_tiktok_links`, `verify_place`, `typical_weather`, `prayer_times`, `transfer_options`, and `plan_trip` (the full crew; slow).
+
+**Claude Desktop (local):** add this to `claude_desktop_config.json`, then restart Claude:
+
+```json
+{
+  "mcpServers": {
+    "voyagent": {
+      "command": "python",
+      "args": ["-m", "voyagent.mcp_server"],
+      "env": {
+        "PYTHONPATH": "C:/path/to/trip-planner-Agent/src",
+        "SERPER_API_KEY": "...",
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+**Remote (Claude custom connector, ChatGPT apps):** the web app serves the same MCP server at `https://<your-host>/mcp`. Deploy it (below), then add that URL as a custom connector in Claude, or as a connector in ChatGPT's developer mode. To run only the MCP server over HTTP: `python -m voyagent.mcp_server --http --port 8000`.
+
+## Deploying for free (Hugging Face Spaces)
+
+1. Create a new Space at [huggingface.co/new-space](https://huggingface.co/new-space) with **SDK: Docker** (blank template) and the free CPU hardware. No credit card is needed.
+2. Push this repo to the Space. The Space's `README.md` must start with this header (add it to the copy you push to the Space):
+   ```yaml
+   ---
+   title: Voyagent
+   emoji: ✈️
+   colorFrom: pink
+   colorTo: purple
+   sdk: docker
+   app_port: 7860
+   ---
    ```
-3. Deploy. Secrets are copied into the environment at startup (`streamlit_app.py`), so the same `config.py` logic works locally and in the cloud.
+3. In **Settings → Variables and secrets**, add the secrets `SERPER_API_KEY` and either `GROQ_API_KEY` (plus the variable `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Optionally set `VOYAGENT_SUPPORT_URL` to your Ko-fi or GitHub Sponsors page to show a "Support Voyagent" link.
+
+Free Spaces sleep after a period of inactivity and wake on the next visit, and their disk is not persistent, so shared plan links last only until the Space restarts. The same `Dockerfile` runs on Render, Koyeb, Railway or any container host.
 
 ## Example output
 
@@ -161,6 +200,11 @@ The provider and model are configured in one place — `src/voyagent/config.py` 
 | `GROQ_STEP_DELAY_SECONDS` | pace agent steps under Groq's free TPM cap (`0` to disable) | `10` |
 | `GROQ_NUM_RETRIES` | retries when Groq returns a rate-limit 429 | `8` |
 | `CREW_MAX_ATTEMPTS` | retries of the whole crew on Groq's transient tool-call error | `3` |
+| `VOYAGENT_MAX_ACTIVE_PLANS` | crew runs allowed at once in the web app (others get "busy, try again") | `2` |
+| `VOYAGENT_SUPPORT_URL` | donation page shown after a plan and in the footer (hidden if unset) | unset |
+| `VOYAGENT_DATA_DIR` | where finished plans are saved for share links | `data` |
+| `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (`SPACE_HOST` is added automatically) | unset |
+| `VOYAGENT_LANGUAGE` | language for place names from OpenStreetMap | `en` |
 
 See [docs/configuration.md](docs/configuration.md) for adding tools and tuning behavior, and [docs/](docs/README.md) for the full documentation set.
 

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="hero">
+  <span class="badge">✈️ AI Travel Planner</span>
+  <h1>Voyagent</h1>
+  <p>Saw a place on TikTok? Turn the spots travellers love into a real,
+     verified day-by-day plan, with the honest advice a seasoned travel agent would give.</p>
+</header>
+
+<form id="trip-form" class="card" autocomplete="on">
+  <div class="row">
+    <label>🛫 Where from?
+      <input name="origin" placeholder="Paris" required>
+    </label>
+    <label>🌍 Where to? <small>(one or more, comma-separated)</small>
+      <input name="cities" placeholder="Tunis, Djerba, Tozeur" required>
+    </label>
+  </div>
+  <div class="row">
+    <label>📅 From
+      <input type="date" name="start" required>
+    </label>
+    <label>📅 To
+      <input type="date" name="end" required>
+    </label>
+  </div>
+  <label>💛 What do you love?
+    <input name="interests" placeholder="food, history, desert, beaches" required>
+  </label>
+
+  <fieldset class="tiktok">
+    <legend>📱 Inspired by TikTok</legend>
+    <label class="check">
+      <input type="checkbox" name="trending" checked>
+      Show me what travellers love on TikTok for these places
+    </label>
+    <label>Paste TikTok links you saved <small>(optional, one per line)</small>
+      <textarea name="links" rows="3" placeholder="https://www.tiktok.com/@someone/video/7647453189742136609"></textarea>
+    </label>
+  </fieldset>
+
+  <button type="submit" class="cta" id="go">Plan my trip ✨</button>
+  <p class="error" id="form-error" hidden></p>
+</form>
+
+<section id="discover" class="card" hidden>
+  <h2>📱 Spots travellers love</h2>
+  <p class="muted" id="discover-status">Reading TikTok and checking every place on the map…</p>
+  <div id="map" class="map"></div>
+  <div id="spots" class="spots"></div>
+  <p class="muted small" id="discover-notes"></p>
+  <button type="button" class="cta" id="build" hidden>Build my itinerary →</button>
+</section>
+
+<section id="progress" class="card" hidden>
+  <h2 id="phase-label">✈️ Choosing your destination…</h2>
+  <div class="bar"><div id="bar-fill"></div></div>
+  <ol class="phases" id="phases">
+    {% for p in phases %}<li>{{ p }}</li>{% endfor %}
+  </ol>
+  <p class="muted small" id="ticker">This takes a few minutes. Our crew checks everything it recommends.</p>
+</section>
+
+<section id="result" hidden>
+  <div class="result-head">🧳 Your itinerary</div>
+  <article class="card plan" id="plan"></article>
+  <div class="actions">
+    <button type="button" id="share">🔗 Copy share link</button>
+    <button type="button" id="download">⬇️ Download</button>
+    <button type="button" id="print">🖨️ Print / PDF</button>
+    <button type="button" id="again">↺ Plan another trip</button>
+  </div>
+  {% if support_url %}
+  <aside class="support card">
+    <strong>Was this plan useful?</strong> Voyagent is free and open source.
+    If it saved you a few hours, you can <a href="{{ support_url }}" target="_blank" rel="noopener">buy the crew a coffee ☕</a>.
+  </aside>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/static/app.js"></script>
+{% endblock %}
