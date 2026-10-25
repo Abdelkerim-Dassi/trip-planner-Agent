@@ -157,16 +157,22 @@ Return JSON only: {{"places": [{{"name": "...", "kind": "town|sight|beach|nature
 Captions:
 {numbered}
 """.strip()
-    response = litellm.completion(
-        model=config.litellm_model(),
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        response_format={"type": "json_object"},
-        num_retries=3,
-    )
-    content = response.choices[0].message.content or "{}"
+    request = {
+        "model": config.litellm_model(),
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0,
+        "num_retries": 3,
+    }
     try:
-        places = json.loads(content).get("places", [])
+        response = litellm.completion(**request, response_format={"type": "json_object"})
+    except litellm.BadRequestError:
+        # Groq rejects a reply that fails its strict JSON check instead of
+        # returning it; ask again without JSON mode and parse it ourselves.
+        response = litellm.completion(**request)
+    content = response.choices[0].message.content or ""
+    match = re.search(r"\{.*\}", content, re.S)
+    try:
+        places = json.loads(match.group(0)).get("places", []) if match else []
     except (ValueError, AttributeError):
         return []
     return [p for p in places if isinstance(p, dict) and p.get("name")]
@@ -182,7 +188,14 @@ def _build(destination: str, videos: list[Video], max_spots: int) -> Discovery:
     if anchor:
         discovery.center = {"lat": anchor.lat, "lon": anchor.lon, "name": anchor.name}
 
-    candidates = _extract_places(videos, destination)
+    try:
+        candidates = _extract_places(videos, destination)
+    except Exception as exc:  # provider down, rate-limited or out of credit
+        discovery.notes.append(
+            "The AI step is unavailable right now, so places couldn't be read from "
+            f"the videos. Please try again in a few minutes. ({type(exc).__name__})"
+        )
+        return discovery
     # Rank by how many distinct videos mention the place, then verify the top
     # ones (verification is rate-limited to ~1 lookup per second).
     candidates.sort(key=lambda p: len(set(p.get("videos") or [])), reverse=True)

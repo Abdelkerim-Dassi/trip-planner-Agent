@@ -12,6 +12,8 @@
 }
 
 * { box-sizing: border-box; }
+/* Author display rules (e.g. on buttons) would otherwise override [hidden]. */
+[hidden] { display: none !important; }
 
 body {
   margin: 0;

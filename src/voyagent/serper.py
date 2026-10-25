@@ -8,12 +8,17 @@ from __future__ import annotations
 
 import json
 import os
-from functools import lru_cache
+import threading
+from collections import OrderedDict
 
 import requests
 
 SEARCH_URL = "https://google.serper.dev/search"
 REQUEST_TIMEOUT_SECONDS = 15
+_CACHE_SIZE = 512
+
+_cache: OrderedDict[str, tuple[dict, ...]] = OrderedDict()
+_cache_lock = threading.Lock()
 
 
 class SearchError(RuntimeError):
@@ -24,13 +29,26 @@ def search(query: str) -> list[dict]:
     """Return Serper's organic results (``title``, ``link``, ``snippet``) for ``query``.
 
     Results are cached per query for the life of the process, which saves
-    credits when several users explore the same destination.
+    credits when several users explore the same destination. Empty answers are
+    never cached: Serper occasionally returns nothing for a query that works a
+    minute later, and caching that would break the query until a restart.
     """
-    return list(_cached_search(query.strip()))
+    query = query.strip()
+    with _cache_lock:
+        if query in _cache:
+            _cache.move_to_end(query)
+            return list(_cache[query])
+
+    results = _fetch(query)
+    if results:
+        with _cache_lock:
+            _cache[query] = results
+            while len(_cache) > _CACHE_SIZE:
+                _cache.popitem(last=False)
+    return list(results)
 
 
-@lru_cache(maxsize=512)
-def _cached_search(query: str) -> tuple[dict, ...]:
+def _fetch(query: str) -> tuple[dict, ...]:
     api_key = os.environ.get("SERPER_API_KEY")
     if not api_key:
         raise SearchError("SERPER_API_KEY is not set in the environment.")

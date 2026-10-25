@@ -23,7 +23,8 @@ PROVIDER = os.environ.get("VOYAGENT_PROVIDER", "openai").lower()
 #: Sensible default model per provider. Override with VOYAGENT_MODEL.
 _DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
-    "groq": "llama-3.3-70b-versatile",
+    # Groq retired llama-3.3-70b-versatile; gpt-oss-120b is on its free tier.
+    "groq": "openai/gpt-oss-120b",
 }
 
 #: The chat model every agent uses. Change it here once, not per-agent.
