@@ -155,11 +155,19 @@ def quick_plan(
     plan = ""
     # Retry with a fresh request rather than a follow-up turn: resending the
     # failed draft would double the tokens against the free per-minute budget.
+    # The saved TikTok spots are the point of the trip, so a plan that drops
+    # one is retried like a plan that drops a day. Matched on the first word
+    # ("Chebika" for "Chebika Oasis"), which survives the model's rephrasing.
+    saved = [
+        m.group(1).split()[0].lower()
+        for m in re.finditer(r"^\s*-\s*([^:(\[]+)", inspiration, re.M)
+        if m.group(1).strip()
+    ]
     for _attempt in range(3):
         response = complete(**request)
         plan = (response.choices[0].message.content or "").strip()
         ok, _ = check(type("Out", (), {"raw": plan})())
-        if ok:
+        if ok and all(name in plan.lower() for name in saved):
             break
     for phase in (4, 5, 6):
         done(phase)
