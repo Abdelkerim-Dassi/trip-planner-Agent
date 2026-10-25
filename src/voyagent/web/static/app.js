@@ -102,6 +102,15 @@
             .bindPopup(`<strong>${escapeHtml(spot.name)}</strong><br>${escapeHtml(spot.why)}`);
         }
       }
+
+      // Places the videos name that OpenStreetMap couldn't confirm: worth
+      // knowing about, but kept out of the plan.
+      if (group.unverified && group.unverified.length) {
+        const also = document.createElement("p");
+        also.className = "also muted small";
+        also.textContent = `Also mentioned (not confirmed on the map yet): ${group.unverified.join(", ")}`;
+        box.appendChild(also);
+      }
     }
 
     if (bounds.length) m.fitBounds(bounds, { padding: [30, 30], maxZoom: 11 });

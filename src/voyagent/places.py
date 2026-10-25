@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import threading
 import time
 from dataclasses import asdict, dataclass
@@ -30,6 +31,16 @@ _MIN_INTERVAL_SECONDS = 1.1
 # Address types that describe a city-sized place, where "distance from the
 # destination" is meaningful. For a country or region it is not.
 _CITY_TYPES = {"city", "town", "village", "municipality", "suburb", "hamlet"}
+
+# Landform words travellers add to names that OSM usually leaves out.
+_GENERIC_WORDS = {
+    "oasis", "rocks", "rock", "beach", "beaches", "village", "island", "lake",
+    "canyon", "gorge", "waterfall", "waterfalls", "dunes", "ruins", "viewpoint",
+}
+# Region-level results a shortened name must not resolve to.
+_ADMIN_KINDS = {"state", "state_district", "county", "region", "province", "country"}
+#: How far from the destination city a shortened-name match may be.
+_FALLBACK_MAX_KM = 150
 
 _lock = threading.Lock()
 _last_request = 0.0
@@ -109,20 +120,46 @@ def geocode(query: str, country_code: str = "") -> Place | None:
     )
 
 
+def _core_name(name: str) -> str:
+    """Drop generic landform words that OpenStreetMap names often omit.
+
+    Travellers write "Chebika Oasis" or "Belvedere Rocks"; OSM has "Chebika".
+    Returns "" when nothing specific would be left.
+    """
+    words = [w for w in re.split(r"\s+", name.strip()) if w]
+    core = [w for w in words if w.lower().strip(",.") not in _GENERIC_WORDS]
+    return " ".join(core) if core and len(core) < len(words) else ""
+
+
 def verify_place(name: str, near: str = "") -> Place | None:
     """Check that ``name`` is a real place, inside ``near``'s country if given.
 
-    Tries the bare name first (restricted to the country), then "name, near",
-    which helps with generic names like "Old Medina".
+    Tries the bare name first (restricted to the country), then "name, near"
+    (helps with generic names like "Old Medina"). Failing that, it retries
+    without generic words such as "Oasis" or "Rocks"; a shortened name is
+    ambiguous ("Chebika" is also a district elsewhere), so those matches must
+    not be administrative areas and, near a city, must lie within
+    ``_FALLBACK_MAX_KM`` of it.
     """
-    country = ""
-    if near:
-        anchor = geocode(near)
-        country = anchor.country_code if anchor else ""
+    anchor = geocode(near) if near else None
+    country = anchor.country_code if anchor else ""
     place = geocode(name, country)
     if place is None and near:
         place = geocode(f"{name}, {near}", country)
-    return place
+    if place is not None:
+        return place
+
+    core = _core_name(name)
+    if not core:
+        return None
+    for query in ([f"{core}, {near}"] if near else []) + [core]:
+        place = geocode(query, country)
+        if place is None or place.kind in _ADMIN_KINDS:
+            continue
+        if anchor and anchor.is_city and distance_km(anchor, place) > _FALLBACK_MAX_KM:
+            continue
+        return place
+    return None
 
 
 def distance_km(a: Place, b: Place) -> float:

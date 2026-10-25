@@ -20,8 +20,10 @@ import re
 from dataclasses import asdict, dataclass, field
 from urllib.parse import urlparse
 
+import requests
+
 from voyagent import config
-from voyagent.places import Place, distance_km, geocode, verify_place
+from voyagent.places import USER_AGENT, Place, distance_km, geocode, verify_place
 from voyagent.serper import SearchError, search
 
 MAX_LINKS = 10
@@ -141,8 +143,10 @@ beaches, markets, neighbourhoods, restaurants, natural sites.
 
 Rules:
 - Only places explicitly named in the captions. Never add places yourself.
-- Skip generic words ("the beach", "local cafes") and anything outside
-  {destination or "the destination"}'s country.
+- Each entry is ONE specific, named place. Skip generic or grouped entries
+  ("the beach", "local cafes", "Djerba beaches") and never join two places
+  into one name ("Djerba Zarzis" is two places).
+- Skip anything outside {destination or "the destination"}'s country.
 - Merge spelling variants into one entry with the most common name.
 - "why" is one short sentence based only on what the captions say.
 - "videos" lists the [numbers] of every caption that mentions the place.
@@ -236,6 +240,25 @@ def trending_spots(
     return _build(destination.strip(), list(videos.values()), max_spots)
 
 
+def _expand_short_link(link: str) -> str:
+    """Turn a share link from the TikTok app into the full video URL.
+
+    The app's "Copy link" gives vm.tiktok.com/... or tiktok.com/t/... links,
+    which redirect to the video page. Follow the redirect once; on any failure
+    keep the original link (it is then reported as unreadable).
+    """
+    if _VIDEO_ID.search(link):
+        return link
+    try:
+        response = requests.head(
+            link, allow_redirects=True, timeout=10, headers={"User-Agent": USER_AGENT}
+        )
+    except requests.RequestException:
+        return link
+    match = re.search(r"https://www\.tiktok\.com/@[^/?#]+/video/\d+", response.url)
+    return match.group(0) if match else link
+
+
 def spots_from_links(
     links: list[str], destination: str = "", max_spots: int = MAX_SPOTS
 ) -> Discovery:
@@ -249,21 +272,22 @@ def spots_from_links(
         if not _is_tiktok(link):
             missed.append(f"Not a TikTok link: {link}")
             continue
+        link = _expand_short_link(link)
         video_id = _VIDEO_ID.search(link)
         try:
             results = search(link)
         except SearchError as exc:
             missed.append(str(exc))
             break
-        match = next(
-            (
-                r
-                for r in results
-                if video_id and video_id.group(1) in r.get("link", "")
-                or r.get("link", "").rstrip("/") == link.rstrip("/")
-            ),
-            None,
-        )
+        def same_video(result: dict) -> bool:
+            # Compare whole video ids: a substring test let ".../video/1"
+            # match any result whose link merely contains a "1".
+            found = _VIDEO_ID.search(result.get("link", ""))
+            if video_id and found:
+                return found.group(1) == video_id.group(1)
+            return result.get("link", "").rstrip("/") == link.rstrip("/")
+
+        match = next((r for r in results if same_video(r)), None)
         if match is None:
             missed.append(f"Couldn't read this video's caption yet: {link}")
             continue

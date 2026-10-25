@@ -112,6 +112,7 @@ button:hover, .button:hover { border-color: var(--pink); }
 .spot .vids a { font-size: .76rem; margin-right: .4rem; }
 .spot label.check { font-size: .82rem; margin: .2rem 0 0; }
 .group-title { grid-column: 1 / -1; margin: .4rem 0 0; font-weight: 600; }
+.also { grid-column: 1 / -1; margin: 0; }
 .pill {
   display: inline-block; font-size: .7rem; padding: .1rem .5rem; border-radius: 999px;
   background: #e9f8f1; color: var(--ok); font-weight: 600;
