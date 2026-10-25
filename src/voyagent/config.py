@@ -26,8 +26,8 @@ _DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     # Groq retired llama-3.3-70b-versatile; gpt-oss-120b is on its free tier.
     "groq": "openai/gpt-oss-120b",
-    # Google's alias for its current Flash model, which is on the free tier.
-    "gemini": "gemini-flash-latest",
+    # Free-tier Flash model (gemini-flash-latest was often overloaded, 503).
+    "gemini": "gemini-3.5-flash",
 }
 
 #: The chat model every agent uses. Change it here once, not per-agent.
@@ -103,6 +103,21 @@ def discovery_model() -> str:
     so the two don't share one rate limit.
     """
     return os.environ.get("VOYAGENT_DISCOVERY_MODEL") or litellm_model()
+
+
+#: Free-tier model to fall back on when the primary is rate-limited or
+#: overloaded. Defaults to Gemini when a Gemini key is set and the agents run
+#: elsewhere; set VOYAGENT_FALLBACK_MODEL="" to disable.
+_DEFAULT_FALLBACK = (
+    f"gemini/{_DEFAULT_MODELS['gemini']}"
+    if os.environ.get("GEMINI_API_KEY") and PROVIDER != "gemini"
+    else ""
+)
+
+
+def fallback_model() -> str:
+    """LiteLLM model id used when the primary model is busy ("" for none)."""
+    return os.environ.get("VOYAGENT_FALLBACK_MODEL", _DEFAULT_FALLBACK)
 
 
 def build_llm():

@@ -191,6 +191,7 @@ The provider and model are configured in one place — `src/voyagent/config.py` 
 | Variable | Purpose | Default |
 |---|---|---|
 | `VOYAGENT_PROVIDER` | `openai`, `groq` or `gemini` (Groq and Gemini have free tiers, no card) | `openai` |
+| `VOYAGENT_FALLBACK_MODEL` | free model used when the primary is rate-limited or overloaded (`""` disables) | `gemini/gemini-3.5-flash` when `GEMINI_API_KEY` is set and the provider isn't Gemini |
 | `VOYAGENT_PLAN_MODE` | `crew` (7 agents) or `quick` (code gathers facts, one grounded call; fits Groq's 8k-tokens-a-minute free tier) | `quick` on groq, else `crew` |
 | `VOYAGENT_DISCOVERY_MODEL` | LiteLLM model id for the TikTok step, e.g. `groq/openai/gpt-oss-120b`, so it doesn't share the crew's rate limit | the agents' model |
 | `VOYAGENT_MODEL` | model name | `gpt-4o-mini` (openai) / `openai/gpt-oss-120b` (groq) |
