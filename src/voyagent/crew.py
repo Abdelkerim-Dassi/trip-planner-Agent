@@ -8,6 +8,7 @@ from crewai import Crew
 from voyagent import config
 from voyagent.agents import TravelAgents
 from voyagent.tasks import TravelTasks
+from voyagent.travel_info import calendar_facts
 
 
 def _throttled(step_callback, delay_seconds):
@@ -51,12 +52,10 @@ class TripCrew:
         self.inspiration = inspiration
 
     def run(self, step_callback=None, task_callback=None):
-        # On Groq's free tier, pace each step to stay under the tokens-per-minute
-        # cap. GROQ_STEP_DELAY_SECONDS=0 disables it (e.g. on a paid tier).
-        if config.PROVIDER == "groq":
-            delay = float(os.environ.get("GROQ_STEP_DELAY_SECONDS", "10"))
-            if delay > 0:
-                step_callback = _throttled(step_callback, delay)
+        # On free tiers (Groq, Gemini), pace each step to stay under the
+        # per-minute caps. VOYAGENT_STEP_DELAY_SECONDS=0 disables it.
+        if config.STEP_DELAY_SECONDS > 0:
+            step_callback = _throttled(step_callback, config.STEP_DELAY_SECONDS)
 
         # Retry the whole crew on Groq's intermittent malformed-tool-call error.
         attempts = int(os.environ.get("CREW_MAX_ATTEMPTS", "3"))
@@ -114,9 +113,14 @@ class TripCrew:
             logistics, self.date_range, context=[plan_itinerary]
         )
         critique_itinerary = tasks.critique_itinerary(
-            critic, self.date_range, context=[add_logistics]
+            critic,
+            self.date_range,
+            context=[add_logistics],
+            calendar_facts=calendar_facts(self.date_range),
         )
-        polish_plan = tasks.polish_plan(editor, context=[critique_itinerary])
+        polish_plan = tasks.polish_plan(
+            editor, context=[critique_itinerary], travel_dates=self.date_range
+        )
 
         # Tasks run in logical order: pick the city, learn about it, curate the
         # standout experiences, draft the plan, add logistics, critique/correct,

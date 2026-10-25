@@ -118,7 +118,8 @@ class DiscoverRequest(BaseModel):
     destinations: str = Field("", description="Comma-separated places, e.g. 'Tunis, Djerba'")
     month: str = ""
     interests: str = ""
-    links: list[str] = Field(default_factory=list, description="TikTok video URLs")
+    links: list[str] = Field(default_factory=list, description="TikTok post URLs")
+    captions: list[str] = Field(default_factory=list, description="Pasted caption text")
 
 
 class PlanRequest(BaseModel):
@@ -139,9 +140,9 @@ def discover(req: DiscoverRequest) -> dict:
         social.trending_spots(d, req.month, req.interests).to_dict()
         for d in destinations[:MAX_DISCOVER_CITIES]
     ]
-    if req.links:
+    if req.links or req.captions:
         anchor = destinations[0] if len(destinations) == 1 else ""
-        from_links = social.spots_from_links(req.links, anchor).to_dict()
+        from_links = social.spots_from_links(req.links, anchor, captions=req.captions).to_dict()
         from_links["destination"] = "Your saved TikToks"
         results.insert(0, from_links)
     return {"results": results}

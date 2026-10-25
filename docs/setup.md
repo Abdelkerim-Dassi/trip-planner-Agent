@@ -76,7 +76,7 @@ SERPER_API_KEY=...
 Optional overrides (any provider):
 
 ```env
-# VOYAGENT_MODEL=llama-3.3-70b-versatile
+# VOYAGENT_MODEL=openai/gpt-oss-120b
 # VOYAGENT_TEMPERATURE=0.2
 # GROQ_STEP_DELAY_SECONDS=10   # pacing for Groq's free TPM cap; 0 to disable
 # GROQ_NUM_RETRIES=8

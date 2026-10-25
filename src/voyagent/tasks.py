@@ -8,9 +8,12 @@ underlying model will otherwise invent plausible-but-wrong places, links and
 weather.
 """
 
+import re
 from textwrap import dedent
 
 from crewai import Task
+
+from voyagent.travel_info import parse_date_range
 
 # Shared grounding rules injected into every task so the agents stay factual.
 _GROUNDING_RULES = dedent(
@@ -45,6 +48,78 @@ _EDITING_RULES = dedent(
     - Write for the traveller: clean markdown, no notes about your own process.
     """
 ).strip()
+
+
+# How an experienced tour planner paces a day. Applied by the Itinerary Critic,
+# which restructures the draft until every day follows them.
+_PACING_RULES = dedent(
+    """
+    **Pacing rules — every day must follow these:**
+    1. **One area per half-day.** Each morning and each afternoon stays within
+       one neighbourhood or two adjacent ones. Never cross the city and come back
+       for a single stop. A day trip out of the city takes its own half-day or
+       full-day block, with the travel time each way stated.
+    2. **Buffer time.** Allow at least 30 minutes between stops in different
+       areas, 60–90 minutes for lunch, and no more than 3 major sights per day.
+       Keep the arrival day light (one easy activity near the hotel) and plan the
+       last day around the departure time and the way to the airport or station.
+    3. **Weekly closing days.** Use the trip calendar below for weekdays. Check
+       the weekly closing day of the main museums and monuments (search only the
+       ones you are unsure about), and move anything scheduled on a day it is
+       closed. In Muslim-majority countries, mosques usually close to visitors
+       around Friday midday prayers. State the closing day next to a place when
+       it matters.
+    4. **Ramadan.** If the trip overlaps Ramadan and the selected city is in a
+       Muslim-majority country: many cafés and restaurants close during daylight
+       and sites may keep shorter hours (check with search), so plan daytime meals
+       at places that stay open, suggest an iftar at sunset and the lively
+       evenings, and add one line on respectful conduct (no eating, drinking or
+       smoking in public during daylight). Note any Eid holiday closures. If the
+       trip is not in Ramadan, do not mention it.
+    5. **Indoor Plan B.** For every day built mainly around outdoor activities,
+       add a one-line **Plan B** with a nearby indoor alternative in case of rain
+       or heat, chosen to suit the season and weather in the plan.
+    """
+).strip()
+
+#: Searches the critic may spend. Checking every place exhausted its iteration
+#: cap, and CrewAI then forced a one-line answer instead of the plan.
+_CRITIC_MAX_SEARCHES = 4
+#: A complete plan is never this short; anything shorter is a summary or a
+#: "see above" pointer.
+_MIN_PLAN_CHARS = 1500
+_DAY_HEADING = re.compile(r"\bDay\s+\d+", re.IGNORECASE)
+
+
+def _full_plan_guardrail(travel_dates: str):
+    """CrewAI guardrail: reject output that isn't the whole day-by-day plan.
+
+    On rejection CrewAI re-runs the task with the returned message, so a
+    critic or editor that answers "the plan is provided above" gets another try
+    instead of silently wiping out the itinerary.
+    """
+    parsed = parse_date_range(travel_dates) if travel_dates else None
+    days = (parsed[1] - parsed[0]).days + 1 if parsed else 1
+
+    def check(output) -> tuple[bool, str]:
+        text = output.raw or ""
+        found = len(set(m.group(0).lower() for m in _DAY_HEADING.finditer(text)))
+        if len(text) < _MIN_PLAN_CHARS or found < days:
+            return (
+                False,
+                f"Your answer must be the ENTIRE plan written out in full, with a "
+                f"'Day N' section for each of the {days} day(s). Rewrite it completely.",
+            )
+        return True, text
+
+    return check
+
+
+# Used when the travel dates are free text the code could not parse.
+_NO_CALENDAR_NOTE = (
+    "Trip calendar: the exact dates could not be computed. Work out each day's "
+    "weekday carefully, and check with search whether the trip overlaps Ramadan."
+)
 
 
 def _inspiration_section(inspiration: str) -> str:
@@ -267,7 +342,9 @@ class TravelTasks:
             context=context if context is not None else [],
         )
 
-    def critique_itinerary(self, agent, travel_dates, context=None) -> Task:
+    def critique_itinerary(
+        self, agent, travel_dates, context=None, calendar_facts=""
+    ) -> Task:
         return Task(
             description=dedent(
                 f"""
@@ -280,16 +357,26 @@ class TravelTasks:
                 - **Reality**: every attraction, restaurant, and hotel is real and
                   located in the selected city. Use the *Search the internet* tool
                   to confirm anything doubtful; remove what you cannot verify.
-                - **Geographic flow**: reorder stops within each day so they don't
-                  zig-zag across the city; group nearby places together.
-                - **Pacing**: each day is realistic, not overstuffed.
                 - **Day count**: there is exactly one entry per day of the travel
                   dates ({travel_dates}) — no more, no fewer.
                 - **Consistency**: one currency throughout, the budget adds up, and
                   no invented links remain.
 
+                Then apply a professional tour planner's pacing rules, and
+                restructure the days wherever the draft breaks them:
+
+                {_PACING_RULES}
+
+                {calendar_facts or _NO_CALENDAR_NOTE}
+
                 Preserve all the good content, the signature experiences, and the
                 logistics; only change what needs fixing.
+
+                **Search budget:** use the search tool at most {_CRITIC_MAX_SEARCHES}
+                times in total, then write the plan. Your final answer must be the
+                ENTIRE corrected plan written out in full, with a "Day N" section
+                for every day. Never answer with a summary or a reference such as
+                "the plan above".
 
                 {_GROUNDING_RULES}
 
@@ -298,17 +385,21 @@ class TravelTasks:
             ),
             expected_output=dedent(
                 """
-                The complete, corrected travel plan: every place verified and in the
-                right city, days flowing geographically with realistic pacing, one
-                entry per travel day, consistent currency and a budget that adds up,
-                with the signature experiences and logistics retained.
+                The ENTIRE corrected travel plan written out in full (never a
+                summary or a pointer to an earlier answer): every place verified and in the
+                right city, each half-day kept to one area with buffers between
+                stops, nothing scheduled on a day it is closed, Ramadan adjustments
+                where they apply, a one-line indoor Plan B on outdoor-heavy days,
+                one entry per travel day, consistent currency and a budget that adds
+                up, with the signature experiences and logistics retained.
                 """
             ).strip(),
             agent=agent,
             context=context if context is not None else [],
+            guardrail=_full_plan_guardrail(travel_dates),
         )
 
-    def polish_plan(self, agent, context=None) -> Task:
+    def polish_plan(self, agent, context=None, travel_dates="") -> Task:
         return Task(
             description=dedent(
                 f"""
@@ -322,8 +413,9 @@ class TravelTasks:
                   already establishes.
                 - Use clear, consistent headings and a clean per-day structure.
                 - Keep ALL substance: every day, the Getting Around section, the
-                  signature experiences, the weather summary, the packing list, and
-                  the budget table.
+                  signature experiences, the weather summary, the packing list, the
+                  budget table, every Plan B line, closing-day notes, and any
+                  Ramadan guidance.
                 - Make the voice warm and motivating, and trim any repetition.
 
                 {_EDITING_RULES}
@@ -342,4 +434,5 @@ class TravelTasks:
             ).strip(),
             agent=agent,
             context=context if context is not None else [],
+            guardrail=_full_plan_guardrail(travel_dates),
         )

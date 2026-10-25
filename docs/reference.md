@@ -7,7 +7,7 @@ A per-component reference for the `voyagent` package.
 The single source of truth for environment, provider, and model setup.
 
 - `PROVIDER` — `"openai"` (default) or `"groq"`, from `VOYAGENT_PROVIDER`.
-- `MODEL_NAME` — chat model; defaults to `gpt-4o-mini` (openai) or `llama-3.3-70b-versatile`
+- `MODEL_NAME` — chat model; defaults to `gpt-4o-mini` (openai) or `openai/gpt-oss-120b`
   (groq); override with `VOYAGENT_MODEL`.
 - `MODEL_TEMPERATURE` — sampling temperature (default `0.2`; override with `VOYAGENT_TEMPERATURE`).
 - `REQUIRED_KEYS` — `SERPER_API_KEY` plus the provider's key (`OPENAI_API_KEY` or `GROQ_API_KEY`).
@@ -108,14 +108,28 @@ no new places, links, prices, dates, or weather figures; keep all substance). A 
 - **expected_output:** The complete itinerary plus a Getting Around section, transport notes
   between stops, transit-pass advice, and advance-booking flags.
 
-### `critique_itinerary(agent, travel_dates, context=None)`
-- **Purpose:** Fix the plan (`context=[add_logistics]`) and return it whole, not as notes.
-- **expected_output:** The corrected plan: verified places, geographic flow, realistic pacing,
-  one entry per travel day, consistent currency and a budget that adds up.
+### `critique_itinerary(agent, travel_dates, context=None, calendar_facts="")`
+- **Purpose:** Fix the plan (`context=[add_logistics]`) and return it whole, not as notes,
+  applying `_PACING_RULES`: one area per half-day; buffers (30+ min between areas, 60–90 min
+  lunch, at most 3 major sights a day, light arrival day, last day built around departure);
+  weekly closing days (searched per museum/monument/market, plus Friday-midday mosque closures);
+  Ramadan adjustments when the trip overlaps it in a Muslim-majority country; and a one-line
+  indoor **Plan B** on outdoor-heavy days.
+- **calendar_facts:** text from `travel_info.calendar_facts(travel_dates)`. When the dates
+  can't be parsed, `_NO_CALENDAR_NOTE` asks the agent to work out weekdays and check Ramadan
+  with search.
+- **expected_output:** The corrected plan: verified places, each half-day in one area with
+  buffers, nothing on a closing day, Ramadan adjustments where relevant, Plan B lines, one entry
+  per travel day, consistent currency and a budget that adds up.
+- **Search budget:** at most `_CRITIC_MAX_SEARCHES` (4) searches; the critic agent runs with
+  `max_iter=15` (`_CRITIC_MAX_ITER`) because it must also rewrite the whole plan.
+- **guardrail:** `_full_plan_guardrail(travel_dates)` rejects any answer shorter than
+  `_MIN_PLAN_CHARS` (1500) or missing a `Day N` heading for a trip day, and CrewAI re-runs
+  the task with that feedback (up to 3 times).
 
-### `polish_plan(agent, context=None)`
+### `polish_plan(agent, context=None, travel_dates="")`
 - **Purpose:** Reshape the corrected plan (`context=[critique_itinerary]`) into the final
-  document, opening with a short evocative intro.
+  document, opening with a short evocative intro. Uses the same full-plan guardrail.
 - **expected_output:** A polished markdown plan — intro, per-day schedule, getting around,
   signature experiences, weather, packing list, budget — with no new facts.
 
@@ -199,6 +213,14 @@ raises `LookupError_` with a traveller-friendly message on failure.
   includes the Hijri date. Cached.
 - `transfer_options(origin, destination)` — straight-line distance plus the top 5 Serper results
   about trains, buses, louages/taxis, and flights, so callers summarise real sourced options.
+- `parse_date_range(travel_dates)` — parses ranges such as `"10 December 2026 - 14 December 2026"`
+  into two dates; returns `None` for free-form text like `"15 June - 22 June"`.
+- `trip_calendar(start, end)` — one line per trip day with its weekday (capped at 31 days).
+- `ramadan_days(start, end)` — the trip days in Ramadan, from AlAdhan's Gregorian-to-Hijri
+  calendar (calculated; a local start can differ by a day). Cached per month.
+- `calendar_facts(travel_dates)` — the text the Itinerary Critic receives: the trip calendar
+  plus a Ramadan line. Returns `""` if the dates can't be parsed; if the Ramadan lookup fails it
+  says so instead of guessing.
 
 ## Background jobs — `jobs.py`
 

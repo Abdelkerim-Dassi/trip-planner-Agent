@@ -29,7 +29,9 @@ from voyagent.serper import SearchError, search
 MAX_LINKS = 10
 MAX_SPOTS = 10
 _TIKTOK_HOSTS = ("tiktok.com",)
-_VIDEO_ID = re.compile(r"/video/(\d+)")
+# Video and photo-carousel posts share one id space.
+_VIDEO_ID = re.compile(r"/(?:video|photo)/(\d+)")
+_POST_URL = re.compile(r"tiktok\.com/@([^/?#]+)/(video|photo)/(\d+)")
 # Geocoding "Sahara" can land on the "Sahara Beach Hotel". When the captions
 # describe an area or landscape, reject matches that are a single business.
 _AREA_KINDS = {"town", "island", "nature", "beach", "region"}
@@ -158,7 +160,7 @@ Captions:
 {numbered}
 """.strip()
     request = {
-        "model": config.litellm_model(),
+        "model": config.discovery_model(),
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
         "num_retries": 3,
@@ -200,40 +202,56 @@ def _build(destination: str, videos: list[Video], max_spots: int) -> Discovery:
     # ones (verification is rate-limited to ~1 lookup per second).
     candidates.sort(key=lambda p: len(set(p.get("videos") or [])), reverse=True)
 
+    def spot(candidate: dict, place: Place) -> Spot:
+        indices = sorted({i for i in candidate.get("videos") or [] if isinstance(i, int)})
+        found = [videos[i] for i in indices if 0 <= i < len(videos)]
+        return Spot(
+            name=candidate["name"],
+            kind=candidate.get("kind", ""),
+            why=candidate.get("why", ""),
+            mentions=max(len(found), 1),
+            videos=[v.url for v in found if v.url],  # pasted captions have no link
+            lat=place.lat,
+            lon=place.lon,
+            address=place.display_name,
+            osm_url=place.osm_url,
+            distance_km=(
+                round(distance_km(anchor, place), 1) if anchor and anchor.is_city else None
+            ),
+            verified=True,
+        )
+
+    unverified: list[dict] = []
     for candidate in candidates:
         if len(discovery.spots) >= max_spots:
             break
-        indices = sorted({i for i in candidate.get("videos") or [] if isinstance(i, int)})
-        urls = [videos[i].url for i in indices if 0 <= i < len(videos)]
         place = verify_place(candidate["name"], destination)
         if (
             place is None
             or (anchor and place.country_code != anchor.country_code)
             or not _plausible(candidate.get("kind", ""), place)
         ):
-            discovery.unverified.append(candidate["name"])
+            unverified.append(candidate)
             continue
         if place.kind == "country" or (anchor and place.osm_url == anchor.osm_url):
             continue  # the destination itself ("Tunisia", "Tunis") is not a spot
-        discovery.spots.append(
-            Spot(
-                name=candidate["name"],
-                kind=candidate.get("kind", ""),
-                why=candidate.get("why", ""),
-                mentions=max(len(urls), 1),
-                videos=urls,
-                lat=place.lat,
-                lon=place.lon,
-                address=place.display_name,
-                osm_url=place.osm_url,
-                distance_km=(
-                    round(distance_km(anchor, place), 1)
-                    if anchor and anchor.is_city
-                    else None
-                ),
-                verified=True,
-            )
-        )
+        discovery.spots.append(spot(candidate, place))
+
+    # Pasted links come without a destination, so ambiguous names ("Chebika")
+    # had nowhere to look. Retry them near the towns this batch confirmed,
+    # the way the caption itself says "near Tozeur".
+    if not destination:
+        towns = [s.name for s in discovery.spots if s.kind in ("town", "city")]
+        for candidate in list(unverified):
+            if len(discovery.spots) >= max_spots:
+                break
+            for town in towns:
+                place = verify_place(candidate["name"], town)
+                if place is not None and _plausible(candidate.get("kind", ""), place):
+                    discovery.spots.append(spot(candidate, place))
+                    unverified.remove(candidate)
+                    break
+    discovery.unverified = [c["name"] for c in unverified]
     return discovery
 
 
@@ -253,34 +271,51 @@ def trending_spots(
     return _build(destination.strip(), list(videos.values()), max_spots)
 
 
-def _expand_short_link(link: str) -> str:
-    """Turn a share link from the TikTok app into the full video URL.
+def _canonical(link: str) -> str | None:
+    """``https://www.tiktok.com/@user/video/<id>`` (or ``/photo/``), without the
+    tracking query (``?q=...&t=...``) the app and search pages append."""
+    match = _POST_URL.search(link)
+    return f"https://www.tiktok.com/@{match.group(1)}/{match.group(2)}/{match.group(3)}" if match else None
 
-    The app's "Copy link" gives vm.tiktok.com/... or tiktok.com/t/... links,
-    which redirect to the video page. Follow the redirect once; on any failure
-    keep the original link (it is then reported as unreadable).
+
+def _expand_short_link(link: str) -> str:
+    """Turn a link copied from TikTok into the clean post URL.
+
+    Full links just lose their tracking query. The app's "Copy link" gives
+    vm.tiktok.com/... or tiktok.com/t/... links, which redirect to the post;
+    follow the redirect once. On any failure keep the original link (it is
+    then reported as unreadable).
     """
-    if _VIDEO_ID.search(link):
-        return link
+    if (clean := _canonical(link)) is not None:
+        return clean
     try:
         response = requests.head(
             link, allow_redirects=True, timeout=10, headers={"User-Agent": USER_AGENT}
         )
     except requests.RequestException:
         return link
-    match = re.search(r"https://www\.tiktok\.com/@[^/?#]+/video/\d+", response.url)
-    return match.group(0) if match else link
+    return _canonical(response.url) or link
 
 
 def spots_from_links(
-    links: list[str], destination: str = "", max_spots: int = MAX_SPOTS
+    links: list[str],
+    destination: str = "",
+    max_spots: int = MAX_SPOTS,
+    captions: list[str] | None = None,
 ) -> Discovery:
-    """Read the captions of TikTok links the user saved and map their places.
+    """Read the captions of TikTok posts the user saved and map their places.
 
     Each link is looked up in Google's index (TikTok's own embed API no longer
-    returns captions). Links Google hasn't indexed are reported in ``notes``.
+    returns captions). Posts Google hasn't indexed yet (often photo posts and
+    new videos) are reported in ``notes``; for those the user can paste the
+    caption text itself, passed as ``captions``.
     """
-    videos, missed = [], []
+    videos = [
+        Video(url="", title="Pasted caption", caption=text.strip()[:600])
+        for text in (captions or [])[:MAX_LINKS]
+        if text.strip()
+    ]
+    missed = []
     for link in [l.strip() for l in links if l.strip()][:MAX_LINKS]:
         if not _is_tiktok(link):
             missed.append(f"Not a TikTok link: {link}")
@@ -302,7 +337,10 @@ def spots_from_links(
 
         match = next((r for r in results if same_video(r)), None)
         if match is None:
-            missed.append(f"Couldn't read this video's caption yet: {link}")
+            missed.append(
+                f"Couldn't read this post yet (search engines haven't seen it; common "
+                f"for photo posts and new videos). Paste its caption instead: {link}"
+            )
             continue
         videos.extend(_videos_from_results([match]))
 

@@ -20,6 +20,9 @@ from voyagent.tools import CalculatorTool, SearchTools
 # Cap on reasoning/tool iterations per agent — enough to research thoroughly,
 # low enough to stay focused and within the token budget.
 _MAX_ITER = 10
+#: The critic searches and then rewrites the whole plan, so it gets more room;
+#: at the shared cap it could run out and return a one-line placeholder.
+_CRITIC_MAX_ITER = 15
 
 
 class TravelAgents:
@@ -140,12 +143,16 @@ class TravelAgents:
                 "A demanding travel editor who has caught countless errors in "
                 "draft itineraries: invented restaurants, a museum on the wrong "
                 "side of town scheduled back-to-back with one across it, days that "
-                "don't add up. You fix these issues and hand back a tighter plan, "
-                "checking anything doubtful with search before keeping it."
+                "don't add up, a museum visit on its weekly closing day. You pace "
+                "days like a tour planner with twenty years in the field: one area "
+                "per half-day, real buffer time, a rainy-day Plan B, and respect "
+                "for local rhythms such as Friday prayers and Ramadan. You fix "
+                "these issues and hand back a tighter plan, checking anything "
+                "doubtful with search before keeping it."
             ),
             tools=[SearchTools.search_internet, CalculatorTool.calculate],
             llm=self._llm,
-            max_iter=_MAX_ITER,
+            max_iter=_CRITIC_MAX_ITER,
             allow_delegation=False,
             verbose=False,
         )

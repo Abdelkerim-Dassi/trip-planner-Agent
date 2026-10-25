@@ -37,7 +37,7 @@ All seven agents share a single model instance built once by `config.build_llm()
 
 - `VOYAGENT_PROVIDER=openai` (default) → a `langchain_openai.ChatOpenAI` (`gpt-4o-mini`).
 - `VOYAGENT_PROVIDER=groq` → a `crewai.LLM` using a LiteLLM `groq/<model>` (default
-  `llama-3.3-70b-versatile`), with `num_retries` so it waits out Groq's rate-limit 429s.
+  `openai/gpt-oss-120b`), with `num_retries` so it waits out Groq's rate-limit 429s.
 
 One-off completions outside the crew (TikTok place extraction in `social.py`) call LiteLLM
 directly with `config.litellm_model()`, which returns the same configured model as a LiteLLM
@@ -86,8 +86,12 @@ what is already in the plan.
   list, and a budget table in one consistent currency.
 - `add_logistics(agent, travel_dates, context=[plan_itinerary])` — returns the same plan with a
   Getting Around section, transport notes between stops, pass advice, and book-ahead flags.
-- `critique_itinerary(agent, travel_dates, context=[add_logistics])` — returns the complete
-  corrected plan (reality, geographic flow, pacing, exact day count, currency/budget).
+- `critique_itinerary(agent, travel_dates, context=[add_logistics], calendar_facts=...)` —
+  returns the complete corrected plan (reality, exact day count, currency/budget), restructured
+  to follow the `_PACING_RULES` a professional tour planner uses: one area per half-day, buffer
+  time, weekly closing days, Ramadan adjustments, and an indoor Plan B on outdoor-heavy days.
+  `calendar_facts` comes from `travel_info.calendar_facts` (the weekday of every trip day and
+  whether the dates overlap Ramadan), computed in code because models get weekdays wrong.
 - `polish_plan(agent, context=[critique_itinerary])` — the final, polished markdown document.
 
 Every task prompt ends with a `__tip_section()` line offering a "$10,000 commission" — a
@@ -131,7 +135,8 @@ curate_experiences = tasks.curate_experiences(curator, date_range, interests,
 plan_itinerary     = tasks.plan_itinerary(concierge, date_range, interests,
                                           context=[gather_city_info, curate_experiences])
 add_logistics      = tasks.add_logistics(logistics, date_range, context=[plan_itinerary])
-critique_itinerary = tasks.critique_itinerary(critic, date_range, context=[add_logistics])
+critique_itinerary = tasks.critique_itinerary(critic, date_range, context=[add_logistics],
+                                              calendar_facts=calendar_facts(date_range))
 polish_plan        = tasks.polish_plan(editor, context=[critique_itinerary])
 
 crew = Crew(

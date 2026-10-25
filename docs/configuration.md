@@ -14,7 +14,7 @@ MODEL_TEMPERATURE = float(os.environ.get("VOYAGENT_TEMPERATURE", "0.2"))
 edit per-agent model settings:
 
 - **openai** → `langchain_openai.ChatOpenAI` (default model `gpt-4o-mini`).
-- **groq** → `crewai.LLM` using LiteLLM's `groq/<model>` (default `llama-3.3-70b-versatile`),
+- **groq** → `crewai.LLM` using LiteLLM's `groq/<model>` (default `openai/gpt-oss-120b`),
   with `num_retries` so it waits out Groq's rate-limit 429s.
 
 TikTok place extraction (`social.py`) calls LiteLLM directly with `config.litellm_model()`,

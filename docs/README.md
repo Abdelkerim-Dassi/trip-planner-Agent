@@ -35,7 +35,7 @@ OpenAI, via a CLI, a FastAPI web app, or as an MCP server inside Claude and Chat
 
 - **Language / tooling:** Python 3.10–3.11, `pip` or [Poetry](https://python-poetry.org/) (src layout)
 - **Framework:** CrewAI (`crewai[litellm]`, `^0.130.0`) for multi-agent orchestration
-- **LLM:** provider-switchable — OpenAI `gpt-4o-mini` (default) or Groq `llama-3.3-70b-versatile`
+- **LLM:** provider-switchable — OpenAI `gpt-4o-mini` (default) or Groq `openai/gpt-oss-120b`
   (free), selected with `VOYAGENT_PROVIDER`
 - **Web search:** Serper.dev Google Search API (shared, cached client)
 - **Open data:** OpenStreetMap Nominatim (place verification), Open-Meteo (typical weather),

@@ -141,6 +141,21 @@ After the original audit, the project was extended and rebranded:
   `voyagent-web` and `voyagent-mcp` console scripts. `poetry.lock` has **not** been regenerated
   yet — Poetry users must run `poetry lock` first.
 
+### 2026-10-25 — Professional pacing rules for the Itinerary Critic
+
+- The critic now restructures every day to a tour planner's rules (`_PACING_RULES` in
+  `tasks.py`): one area per half-day, buffer time, weekly closing days, Ramadan adjustments,
+  and an indoor Plan B. A test plan before this change sent Day 1 from the Medina to Sidi Bou
+  Said, back to Bardo and back to the Medina.
+- `travel_info.calendar_facts` computes each trip day's weekday and any overlap with Ramadan
+  (AlAdhan Hijri calendar) and passes them to the critic, since models get weekdays wrong.
+- The Final Editor must keep Plan B lines, closing-day notes and Ramadan guidance.
+- **Bug found while testing:** asked to search every place's closing day, the critic ran out
+  of iterations and CrewAI forced a one-line answer ("the plan is provided above"), so the
+  editor never received the corrected plan. Fixed with a search budget of 4, a higher critic
+  `max_iter` (15), and a CrewAI guardrail on the critic and editor tasks that rejects anything
+  but a full plan with every `Day N` section and makes the agent retry.
+
 ## Remaining suggestions (not yet done)
 
 - Add automated tests (e.g. for the calculator evaluator, `validate_env`, provider selection

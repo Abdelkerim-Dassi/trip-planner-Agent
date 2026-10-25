@@ -207,11 +207,15 @@
       interests: f.get("interests").trim(),
     };
     if (request.end < request.start) return fail("The trip must end after it starts.");
-    const links = f.get("links").split(/\s+/).filter((l) => l.startsWith("http"));
+    // One entry per line: links are looked up, any other text is read as a
+    // pasted caption (for posts search engines haven't indexed yet).
+    const lines = f.get("links").split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const links = lines.filter((l) => /^https?:\/\//.test(l));
+    const captions = lines.filter((l) => !/^https?:\/\//.test(l));
     const trending = f.get("trending") === "on";
     $("go").disabled = true;
 
-    if (!trending && !links.length) {
+    if (!trending && !links.length && !captions.length) {
       spots = [];
       show($("discover"), false);
       return startPlan();
@@ -230,6 +234,7 @@
         month,
         interests: request.interests,
         links,
+        captions,
       });
       renderSpots(data.results);
     } catch (err) {

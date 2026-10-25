@@ -9,7 +9,7 @@ MCP server can hand them straight to clients.
 from __future__ import annotations
 
 import calendar
-from datetime import date
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from statistics import mean
 
@@ -21,6 +21,11 @@ from voyagent.serper import SearchError, search
 REQUEST_TIMEOUT_SECONDS = 20
 OPEN_METEO_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 ALADHAN_TIMINGS = "https://api.aladhan.com/v1/timings/{day}"
+ALADHAN_HIJRI_CALENDAR = "https://api.aladhan.com/v1/gToHCalendar/{month}/{year}"
+#: Date formats accepted for a "start - end" travel date range.
+_DATE_FORMATS = ("%d %B %Y", "%d %b %Y", "%Y-%m-%d", "%B %d, %Y", "%d/%m/%Y")
+#: Longest trip for which a day-by-day calendar is generated.
+_MAX_CALENDAR_DAYS = 31
 _MONTHS = {name.lower(): i for i, name in enumerate(calendar.month_name) if name}
 _MONTHS.update({name.lower(): i for i, name in enumerate(calendar.month_abbr) if name})
 
@@ -145,3 +150,88 @@ def transfer_options(origin: str, destination: str) -> dict:
         ],
         "note": "Road distance is usually 20-40% longer than the straight line.",
     }
+
+
+def parse_date_range(travel_dates: str) -> tuple[date, date] | None:
+    """Parse "10 December 2026 - 14 December 2026" (and similar) into dates.
+
+    Returns ``None`` for free-form ranges like "15 June - 22 June", where the
+    agents fall back to search instead of a computed calendar.
+    """
+    parts = [p.strip() for p in travel_dates.replace("–", "-").split(" - ")]
+    if len(parts) != 2:
+        return None
+    for fmt in _DATE_FORMATS:
+        try:
+            start, end = (datetime.strptime(p, fmt).date() for p in parts)
+        except ValueError:
+            continue
+        return (start, end) if start <= end else None
+    return None
+
+
+def trip_calendar(start: date, end: date) -> str:
+    """One line per trip day with its weekday, e.g. "Day 1: Thursday 10 December 2026".
+
+    Models often get weekdays wrong, and weekly closing days depend on them.
+    """
+    days = min((end - start).days + 1, _MAX_CALENDAR_DAYS)
+    return "\n".join(
+        f"Day {i + 1}: {start + timedelta(days=i):%A %d %B %Y}" for i in range(days)
+    )
+
+
+@lru_cache(maxsize=64)
+def _hijri_month(year: int, month: int) -> dict[date, tuple[int, int]]:
+    """Gregorian date -> (Hijri month, Hijri year) for one Gregorian month."""
+    response = requests.get(
+        ALADHAN_HIJRI_CALENDAR.format(month=month, year=year),
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    result = {}
+    for day in response.json()["data"]:
+        gregorian = datetime.strptime(day["gregorian"]["date"], "%d-%m-%Y").date()
+        hijri = day["hijri"]
+        result[gregorian] = (int(hijri["month"]["number"]), int(hijri["year"]))
+    return result
+
+
+def ramadan_days(start: date, end: date) -> list[date]:
+    """The trip days that fall in Ramadan (AlAdhan's calculated calendar).
+
+    Local start dates can differ by a day where the month begins on moon sighting.
+    """
+    days, current = [], start
+    while current <= end:
+        if _hijri_month(current.year, current.month).get(current, (0, 0))[0] == 9:
+            days.append(current)
+        current += timedelta(days=1)
+    return days
+
+
+def calendar_facts(travel_dates: str) -> str:
+    """Computed facts about the trip dates for the agents: weekdays and Ramadan.
+
+    Returns "" when the dates can't be parsed; lookup failures degrade to a note
+    asking the agent to verify with search instead.
+    """
+    parsed = parse_date_range(travel_dates)
+    if parsed is None:
+        return ""
+    start, end = parsed
+    lines = ["Trip calendar (computed, trust these weekdays):", trip_calendar(start, end)]
+    try:
+        ramadan = ramadan_days(start, end)
+    except (requests.RequestException, ValueError, KeyError):
+        lines.append("Ramadan: could not be checked; verify with search if relevant.")
+    else:
+        if ramadan:
+            lines.append(
+                f"Ramadan: the trip overlaps Ramadan on {len(ramadan)} day(s), "
+                f"{ramadan[0]:%d %B} to {ramadan[-1]:%d %B %Y} "
+                "(calculated; local start may differ by a day)."
+            )
+        else:
+            lines.append("Ramadan: the trip does not fall in Ramadan.")
+    return "\n".join(lines)

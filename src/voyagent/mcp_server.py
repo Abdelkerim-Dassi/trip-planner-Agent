@@ -69,14 +69,19 @@ async def trending_spots(destination: str, month: str = "", interests: str = "")
 
 
 @mcp.tool(title="Places from TikTok links")
-async def spots_from_tiktok_links(links: list[str], destination: str = "") -> dict:
-    """Map the places mentioned in TikTok videos the user saved.
+async def spots_from_tiktok_links(
+    links: list[str], destination: str = "", captions: list[str] | None = None
+) -> dict:
+    """Map the places mentioned in TikTok posts the user saved.
 
     Args:
-        links: Up to 10 TikTok video URLs.
+        links: Up to 10 TikTok video or photo-post URLs (short share links work).
         destination: Optional country or city, to keep only places located there.
+        captions: Optional caption texts, for posts search engines haven't indexed.
     """
-    discovery = await _in_thread(social.spots_from_links, links, destination)
+    discovery = await _in_thread(
+        lambda: social.spots_from_links(links, destination, captions=captions)
+    )
     return discovery.to_dict()
 
 

@@ -6,7 +6,7 @@ ReelTrip (formerly Voyagent) is a multi-agent AI travel planner built on [CrewAI
 
 What makes it different:
 
-- **TikTok to trip plan.** ReelTrip reads what travellers share on TikTok about your destination, or the TikTok links you saved, pulls out the places they mention, keeps only the ones OpenStreetMap confirms exist, and puts them on a map. You keep the ones you like and the crew builds them into your plan, with a travel agent's reality check (distance, season, crowds).
+- **TikTok to trip plan.** ReelTrip reads what travellers share on TikTok about your destination, or the TikTok posts you saved (video and photo links, short share links, or just a pasted caption), pulls out the places they mention, keeps only the ones OpenStreetMap confirms exist, and puts them on a map. You keep the ones you like and the crew builds them into your plan, with a travel agent's reality check (distance, season, crowds).
 - **Works inside Claude and ChatGPT.** ReelTrip is also an [MCP](https://modelcontextprotocol.io) server with grounded tools: trending TikTok spots, place verification, typical weather, prayer times and getting-there options.
 - **Free to run.** Groq's free LLM tier (or OpenAI), Serper's free search tier, and free open data (OpenStreetMap, Open-Meteo, AlAdhan). Hosts free on Render.
 
@@ -21,7 +21,7 @@ Seven CrewAI agents run in sequence. Each step's output is passed forward as tas
 | 3 | **Experience Curator** | Surfaces signature experiences and hidden gems, and weighs the TikTok spots you kept. |
 | 4 | **Travel Concierge** | Drafts the day-by-day plan for your exact dates, with weather, packing list and budget. |
 | 5 | **Logistics Planner** | Adds getting around, transfers and booking notes. |
-| 6 | **Itinerary Critic** | Fixes pacing, geography and gaps. |
+| 6 | **Itinerary Critic** | Paces the days like a professional tour planner: one area per half-day, buffer time, weekly closing days, Ramadan hours, and an indoor Plan B. Weekdays and Ramadan dates are computed in code, not guessed. |
 | 7 | **Final Editor** | Polishes the verified plan into one document (no new facts allowed). |
 
 Every agent must ground claims in web search: only real places in the selected country, links only when copied from a result, °C, one currency. The model is provider-switchable in `src/voyagent/config.py`: OpenAI `gpt-4o-mini` by default, or Groq's free tier with `VOYAGENT_PROVIDER=groq`.
@@ -190,11 +190,12 @@ The provider and model are configured in one place — `src/voyagent/config.py` 
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `VOYAGENT_PROVIDER` | `openai` or `groq` | `openai` |
-| `VOYAGENT_MODEL` | model name | `gpt-4o-mini` (openai) / `llama-3.3-70b-versatile` (groq) |
+| `VOYAGENT_PROVIDER` | `openai`, `groq` or `gemini` (Groq and Gemini have free tiers, no card) | `openai` |
+| `VOYAGENT_DISCOVERY_MODEL` | LiteLLM model id for the TikTok step, e.g. `groq/openai/gpt-oss-120b`, so it doesn't share the crew's rate limit | the agents' model |
+| `VOYAGENT_MODEL` | model name | `gpt-4o-mini` (openai) / `openai/gpt-oss-120b` (groq) |
 | `VOYAGENT_TEMPERATURE` | sampling temperature | `0.2` |
-| `GROQ_STEP_DELAY_SECONDS` | pace agent steps under Groq's free TPM cap (`0` to disable) | `10` |
-| `GROQ_NUM_RETRIES` | retries when Groq returns a rate-limit 429 | `8` |
+| `VOYAGENT_STEP_DELAY_SECONDS` | pause between agent steps to stay under free-tier per-minute caps (`0` to disable; `GROQ_STEP_DELAY_SECONDS` still works) | `10` (groq), `6` (gemini), `0` (openai) |
+| `VOYAGENT_NUM_RETRIES` | retries when a free tier returns a rate-limit 429 (`GROQ_NUM_RETRIES` still works) | `8` |
 | `CREW_MAX_ATTEMPTS` | retries of the whole crew on Groq's transient tool-call error | `3` |
 | `VOYAGENT_MAX_ACTIVE_PLANS` | crew runs allowed at once in the web app (others get "busy, try again") | `2` |
 | `VOYAGENT_SUPPORT_URL` | donation page shown after a plan and in the footer (hidden if unset) | unset |
