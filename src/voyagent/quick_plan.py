@@ -14,9 +14,16 @@ from textwrap import dedent
 from typing import Callable
 
 from voyagent import config
+from voyagent.llm import complete
 from voyagent.serper import SearchError, search
 from voyagent.tasks import _GROUNDING_RULES, _PACING_RULES, _full_plan_guardrail
-from voyagent.travel_info import LookupError_, calendar_facts, parse_date_range, typical_weather
+from voyagent.travel_info import (
+    LookupError_,
+    calendar_facts,
+    parse_date_range,
+    trip_calendar,
+    typical_weather,
+)
 
 #: Candidate cities considered; each costs a weather lookup and two searches.
 MAX_CITIES = 3
@@ -76,8 +83,6 @@ def quick_plan(
     on_phase: PhaseCallback | None = None,
 ) -> str:
     """Return a markdown day-by-day plan; raises if the model call fails."""
-    import litellm  # ships with crewai; imported lazily
-
     done = on_phase or (lambda _i: None)
     candidates = [c.strip() for c in cities.split(",") if c.strip()][:MAX_CITIES]
     month = _month(travel_dates)
@@ -90,6 +95,14 @@ def quick_plan(
     )
     done(2)  # calendar, Ramadan and TikTok inspiration ready
 
+    # Exact headings, so every plan has the same scannable "Day N" structure.
+    parsed = parse_date_range(travel_dates)
+    headings = (
+        "headed exactly:\n"
+        + "\n".join(f"           ## {line}" for line in trip_calendar(*parsed).splitlines())
+        if parsed
+        else 'each headed "## Day N: <weekday> <date>"'
+    )
     choose = (
         f"Pick the ONE best city for these dates and interests from: {', '.join(candidates)}. "
         "Start the plan by naming it and saying in one sentence why."
@@ -106,7 +119,7 @@ def quick_plan(
 
         {facts}
 
-        {"The traveller saved these places on TikTok (each confirmed on OpenStreetMap). Use the ones that fit, with an honest reality check (travel time, season, crowds); say in one line why you skip any:" if inspiration.strip() else ""}
+        {"The traveller saved these places on TikTok (each confirmed on OpenStreetMap). They are the reason for this trip: schedule EVERY one of them by name in the days, with an honest reality check (travel time, season, best time to avoid crowds). Skip one only if it is beyond a day trip or closed in this season, and then say so in one line:" if inspiration.strip() else ""}
         {inspiration.strip()}
 
         Research notes (your only source of places and facts):
@@ -119,10 +132,9 @@ def quick_plan(
         Write, in this order:
         1. A two-sentence opening about the destination (not the home city).
         2. A short "Getting around" section.
-        3. One "## Day N: <weekday> <date>" section for EVERY day of the trip, with
-           morning, lunch, afternoon and evening, the area for each half-day,
-           travel time between areas, and a one-line indoor **Plan B** on
-           outdoor-heavy days.
+        3. One section for EVERY day of the trip, {headings}, with morning,
+           lunch, afternoon and evening, the area for each half-day, travel time
+           between areas, and a one-line indoor **Plan B** on outdoor-heavy days.
         4. Weather in °C, a packing list, and a budget table in one currency with a total.
 
         {_PACING_RULES}
@@ -136,21 +148,19 @@ def quick_plan(
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.3,
         "max_tokens": MAX_OUTPUT_TOKENS,
-        "num_retries": 6,
+        "num_retries": 2,
     }
     check = _full_plan_guardrail(travel_dates)
     done(3)  # plan drafting starts
     plan = ""
-    for attempt in range(2):
-        response = litellm.completion(**request)
+    # Retry with a fresh request rather than a follow-up turn: resending the
+    # failed draft would double the tokens against the free per-minute budget.
+    for _attempt in range(3):
+        response = complete(**request)
         plan = (response.choices[0].message.content or "").strip()
         ok, _ = check(type("Out", (), {"raw": plan})())
         if ok:
             break
-        request["messages"] = request["messages"] + [
-            {"role": "assistant", "content": plan},
-            {"role": "user", "content": "That was incomplete. Write the ENTIRE plan again, every day in full."},
-        ]
     for phase in (4, 5, 6):
         done(phase)
     # Models sometimes wrap the whole answer in a markdown fence.

@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import requests
 
 from voyagent import config
+from voyagent.llm import complete
 from voyagent.places import USER_AGENT, Place, distance_km, geocode, verify_place
 from voyagent.serper import SearchError, search
 
@@ -137,7 +138,8 @@ def _extract_places(videos: list[Video], destination: str) -> list[dict]:
     """Ask the LLM which concrete places the captions mention."""
     import litellm  # ships with crewai; imported lazily to keep startup fast
 
-    numbered = "\n".join(f"[{i}] {v.text[:400]}" for i, v in enumerate(videos))
+    # 250 characters keeps the place names while fitting free per-minute budgets.
+    numbered = "\n".join(f"[{i}] {v.text[:250]}" for i, v in enumerate(videos))
     prompt = f"""
 You read TikTok video captions about travel to {destination or "a destination"}.
 List the specific, named places and experiences they recommend: towns, sights,
@@ -166,11 +168,11 @@ Captions:
         "num_retries": 3,
     }
     try:
-        response = litellm.completion(**request, response_format={"type": "json_object"})
+        response = complete(**request, response_format={"type": "json_object"})
     except litellm.BadRequestError:
         # Groq rejects a reply that fails its strict JSON check instead of
         # returning it; ask again without JSON mode and parse it ourselves.
-        response = litellm.completion(**request)
+        response = complete(**request)
     content = response.choices[0].message.content or ""
     match = re.search(r"\{.*\}", content, re.S)
     try:
