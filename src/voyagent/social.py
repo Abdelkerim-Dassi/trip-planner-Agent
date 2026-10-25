@@ -25,7 +25,7 @@ import requests
 from voyagent import config
 from voyagent.llm import complete
 from voyagent.places import USER_AGENT, Place, distance_km, geocode, verify_place
-from voyagent.serper import SearchError, search
+from voyagent.serper import SearchError, fresh_search, search
 
 MAX_LINKS = 10
 MAX_SPOTS = 10
@@ -338,6 +338,13 @@ def spots_from_links(
             return result.get("link", "").rstrip("/") == link.rstrip("/")
 
         match = next((r for r in results if same_video(r)), None)
+        if match is None:
+            # Google sometimes answers without the post and a later call finds
+            # it; the cached answer would hide it until a restart, so ask fresh.
+            try:
+                match = next((r for r in fresh_search(link) if same_video(r)), None)
+            except SearchError:
+                pass
         if match is None:
             missed.append(
                 f"Couldn't read this post yet (search engines haven't seen it; common "

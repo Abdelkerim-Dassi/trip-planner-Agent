@@ -48,6 +48,17 @@ def search(query: str) -> list[dict]:
     return list(results)
 
 
+def fresh_search(query: str) -> list[dict]:
+    """Like :func:`search` but skips the cache, and replaces the cached answer
+    when the fresh one has results."""
+    query = query.strip()
+    results = _fetch(query)
+    if results:
+        with _cache_lock:
+            _cache[query] = results
+    return list(results)
+
+
 def _fetch(query: str) -> tuple[dict, ...]:
     api_key = os.environ.get("SERPER_API_KEY")
     if not api_key:
