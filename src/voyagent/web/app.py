@@ -29,6 +29,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
 from voyagent import social
+from voyagent import config
 from voyagent.config import MissingConfigError, validate_env
 from voyagent.jobs import PHASES, PlanJob
 from voyagent.mcp_server import mcp
@@ -182,7 +183,14 @@ def plan_status(job_id: str) -> dict:
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"ok": True}
+    # Model names only, never keys: lets you confirm which free setup is live.
+    return {
+        "ok": True,
+        "plan_mode": config.PLAN_MODE,
+        "model": config.litellm_model(),
+        "discovery_model": config.discovery_model(),
+        "fallback_model": config.fallback_model() or None,
+    }
 
 
 # --- Pages -------------------------------------------------------------------
