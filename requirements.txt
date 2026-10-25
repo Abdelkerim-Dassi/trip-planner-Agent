@@ -1,13 +1,18 @@
-# For pip users. Poetry users: use `poetry install` (see pyproject.toml / poetry.lock).
-# [litellm] extra is required for non-native providers like Groq.
-crewai[litellm]==0.193.2  # pinned to the tested version
-langchain>=0.3.27
-langchain-openai>=0.3.28
-langchain-community>=0.3.27
-python-dotenv>=1.0.0
-requests>=2.31.0
+# For pip users and the Dockerfile. Poetry users: see pyproject.toml.
+# Versions are pinned to the set Voyagent was tested with, so a deploy never
+# picks up an untested major release. [litellm] is required for Groq.
+crewai[litellm]==0.193.2
+langchain==1.3.10
+langchain-core==1.4.8
+langchain-openai==1.3.2
+langchain-community==0.4.2
+openai==2.31.0
+pydantic==2.12.5
+python-dotenv==1.0.0
+requests==2.32.5
 # Web app + MCP server
-fastapi>=0.115
-uvicorn[standard]>=0.30
-jinja2>=3.1
-mcp==2.3.0  # pinned to the tested version (2.x API)
+fastapi==0.135.1
+starlette==0.52.1
+uvicorn[standard]==0.41.0
+jinja2==3.1.6
+mcp==2.3.0
