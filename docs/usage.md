@@ -80,11 +80,11 @@ Poll `GET /api/plans/{id}` until `status` is `done` (or `error`).
 
 ### Hosting
 
-The `Dockerfile` runs the web app on port 7860, ready for Hugging Face Spaces (Docker SDK,
-free CPU tier) or any container host (Render, Koyeb, Railway, ...). See the root
-[README](../README.md#deploying-for-free-hugging-face-spaces) for the Space header and the
-secrets to set. Free Spaces sleep when idle and their disk is not persistent, so shared plan
-links last only until the Space restarts.
+The `Dockerfile` runs the web app on Render's free plan or any container host (it uses the
+host's `PORT`, defaulting to 7860). See the root
+[README](../README.md#deploying-for-free-render) for the steps and the environment
+variables to set. Free Render services sleep after 15 minutes idle and their disk is wiped on
+restart, so shared plan links don't last.
 
 ## MCP server (Claude, ChatGPT)
 
@@ -126,8 +126,8 @@ For Groq, use `"VOYAGENT_PROVIDER": "groq"` and `"GROQ_API_KEY"` instead of the 
 
 **Remote (Claude custom connector, ChatGPT apps):** the web app serves the same MCP server at
 `https://<your-host>/mcp`. Deploy it, then add that URL as a custom connector in Claude, or as
-a connector in ChatGPT's developer mode. On hosts other than Hugging Face Spaces (which sets
-`SPACE_HOST` automatically), add your hostname to `VOYAGENT_PUBLIC_HOSTS` so the endpoint
+a connector in ChatGPT's developer mode. On hosts other than Render or Hugging Face Spaces (whose
+hostnames are added automatically), add your hostname to `VOYAGENT_PUBLIC_HOSTS` so the endpoint
 accepts it.
 
 To run only the MCP server over HTTP:

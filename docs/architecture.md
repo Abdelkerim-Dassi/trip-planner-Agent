@@ -28,7 +28,7 @@ src/voyagent/
     __main__.py  python -m voyagent.web — runs the app with uvicorn.
     templates/   Jinja2 pages: base.html, index.html (planner), plan.html (share page).
     static/      app.js (vanilla JS + Leaflet map), style.css.
-Dockerfile       Container for Hugging Face Spaces (port 7860) or any container host.
+Dockerfile       Container for Render's free plan or any container host.
 ```
 
 ## The LLM (provider-switchable)
@@ -180,7 +180,7 @@ Leaflet on OpenStreetMap tiles and Markdown rendered client-side with marked + D
 `transfer_options`, and `plan_trip` (the full crew, run through `PlanJob` with progress
 reports). It runs over stdio (e.g. Claude Desktop) or streamable HTTP (`--http`); the web app
 mounts the same server at `/mcp` with DNS-rebinding protection (allowed hosts: localhost,
-`SPACE_HOST`, and `VOYAGENT_PUBLIC_HOSTS`).
+`RENDER_EXTERNAL_HOSTNAME`, `SPACE_HOST`, and `VOYAGENT_PUBLIC_HOSTS`).
 
 ## Resilience on Groq's free tier
 

@@ -51,10 +51,11 @@ _jobs_lock = threading.Lock()
 def _allowed_hosts() -> list[str]:
     """Hosts the MCP endpoint answers to (DNS-rebinding protection).
 
-    Hugging Face Spaces sets SPACE_HOST; add others with VOYAGENT_PUBLIC_HOSTS.
+    Render sets RENDER_EXTERNAL_HOSTNAME and Hugging Face Spaces sets SPACE_HOST;
+    add others with VOYAGENT_PUBLIC_HOSTS.
     """
     hosts = ["localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"]
-    extra = [os.environ.get("SPACE_HOST", "")]
+    extra = [os.environ.get("RENDER_EXTERNAL_HOSTNAME", ""), os.environ.get("SPACE_HOST", "")]
     extra += os.environ.get("VOYAGENT_PUBLIC_HOSTS", "").split(",")
     return hosts + [h.strip() for h in extra if h.strip()]
 

@@ -121,9 +121,9 @@ docker build -t voyagent .
 docker run -p 7860:7860 --env-file .env voyagent    # http://localhost:7860
 ```
 
-The image runs `python -m voyagent.web` on port 7860 as user 1000, which is what Hugging Face
-Spaces (Docker SDK) expects; see the root [README](../README.md#deploying-for-free-hugging-face-spaces)
-for the Space setup.
+The image runs `python -m voyagent.web` on port 7860 as user 1000, and honours a `PORT` set by the host (Render sets one);
+see the root [README](../README.md#deploying-for-free-render)
+for the Render setup.
 
 > **Groq free-tier limits:** Groq caps tokens per minute (~12k) and per day (~100k). Voyagent
 > paces and retries requests to stay under the per-minute cap (see

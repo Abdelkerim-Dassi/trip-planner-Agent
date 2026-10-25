@@ -1,13 +1,3 @@
----
-title: Voyagent
-emoji: ✈️
-colorFrom: pink
-colorTo: purple
-sdk: docker
-app_port: 7860
-short_description: Turn TikTok travel spots into a verified trip plan
----
-
 # Voyagent
 
 A multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). Give it an origin, candidate destinations, dates and interests, and seven specialized agents pick the best city, research it, and return a verified day-by-day itinerary with logistics, budget and packing notes.
@@ -16,7 +6,7 @@ What makes it different:
 
 - **TikTok to trip plan.** Voyagent reads what travellers share on TikTok about your destination, or the TikTok links you saved, pulls out the places they mention, keeps only the ones OpenStreetMap confirms exist, and puts them on a map. You keep the ones you like and the crew builds them into your plan, with a travel agent's reality check (distance, season, crowds).
 - **Works inside Claude and ChatGPT.** Voyagent is also an [MCP](https://modelcontextprotocol.io) server with grounded tools: trending TikTok spots, place verification, typical weather, prayer times and getting-there options.
-- **Free to run.** Groq's free LLM tier (or OpenAI), Serper's free search tier, and free open data (OpenStreetMap, Open-Meteo, AlAdhan). Hosts free on Hugging Face Spaces.
+- **Free to run.** Groq's free LLM tier (or OpenAI), Serper's free search tier, and free open data (OpenStreetMap, Open-Meteo, AlAdhan). Hosts free on Render.
 
 ## How it works
 
@@ -43,7 +33,7 @@ Every agent must ground claims in web search: only real places in the selected c
 - **FastAPI + Uvicorn** for the web app and JSON API; plain HTML/CSS/JS front end (no build step) with **Leaflet** maps on OpenStreetMap tiles
 - **MCP Python SDK** (`mcp` 2.x) for the Claude / ChatGPT integration
 - **Serper.dev** for web search; **OpenStreetMap Nominatim**, **Open-Meteo** and **AlAdhan** for free grounded data
-- **Docker** for hosting (Hugging Face Spaces free tier, or any container host)
+- **Docker** for hosting (Render's free plan, or any container host)
 
 ## Repository structure
 
@@ -63,7 +53,7 @@ Every agent must ground claims in web search: only real places in the selected c
 │   ├── mcp_server.py         # Voyagent MCP server (stdio or HTTP)
 │   ├── tools/                # CrewAI tools: web search, calculator
 │   └── web/                  # FastAPI app, page templates, static JS/CSS
-├── Dockerfile                # Container for Hugging Face Spaces / any host
+├── Dockerfile                # Container for Render / any host
 ├── docs/                     # Project documentation
 ├── .env.example              # Template for required API keys
 ├── requirements.txt          # pip dependencies (used by the Dockerfile)
@@ -170,13 +160,17 @@ Voyagent's MCP tools: `trending_spots`, `spots_from_tiktok_links`, `verify_place
 
 **Remote (Claude custom connector, ChatGPT apps):** the web app serves the same MCP server at `https://<your-host>/mcp`. Deploy it (below), then add that URL as a custom connector in Claude, or as a connector in ChatGPT's developer mode. To run only the MCP server over HTTP: `python -m voyagent.mcp_server --http --port 8000`.
 
-## Deploying for free (Hugging Face Spaces)
+## Deploying for free (Render)
 
-1. Create a new Space at [huggingface.co/new-space](https://huggingface.co/new-space) with **SDK: Docker** (blank template) and the free CPU hardware. No credit card is needed.
-2. Push this repo to the Space's `main` branch (`git push <space-remote> master:main`). The header at the top of this README (`sdk: docker`, `app_port: 7860`) is what tells Hugging Face how to build and serve it.
-3. In **Settings → Variables and secrets**, add the secrets `SERPER_API_KEY` and either `GROQ_API_KEY` (plus the variable `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Optionally set `VOYAGENT_SUPPORT_URL` to your Ko-fi or GitHub Sponsors page to show a "Support Voyagent" link.
+Render's free plan runs the `Dockerfile` with no credit card. Without a card on file, Render pauses the service if you exceed the free limits instead of billing you.
 
-Free Spaces sleep after a period of inactivity and wake on the next visit, and their disk is not persistent, so shared plan links last only until the Space restarts. The same `Dockerfile` runs on Render, Koyeb, Railway or any container host.
+1. Sign up at [render.com](https://render.com) (signing in with GitHub is easiest).
+2. In the dashboard click **New → Web Service**, choose **Public Git Repository** and enter this repo's GitHub URL (or connect your GitHub account and pick the repo).
+3. Render detects the `Dockerfile`. Pick a region close to your users, set **Instance Type** to **Free**, and leave the start command empty.
+4. Under **Environment Variables**, add `SERPER_API_KEY` and either `GROQ_API_KEY` (plus `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Optionally add `VOYAGENT_SUPPORT_URL` with your Ko-fi or GitHub Sponsors page to show a "Support Voyagent" link.
+5. Click **Deploy Web Service**. The first build takes several minutes. The app is then live at `https://<service-name>.onrender.com`, and the MCP endpoint at `https://<service-name>.onrender.com/mcp`.
+
+Free-plan limits: the service sleeps after 15 minutes without traffic and takes about a minute to wake; its disk is wiped on every restart or redeploy, so shared plan links don't last; and it has 512 MB of memory, which is tight for a full crew run. The same `Dockerfile` also runs on any other container host.
 
 ## Example output
 
@@ -203,7 +197,7 @@ The provider and model are configured in one place — `src/voyagent/config.py` 
 | `VOYAGENT_MAX_ACTIVE_PLANS` | crew runs allowed at once in the web app (others get "busy, try again") | `2` |
 | `VOYAGENT_SUPPORT_URL` | donation page shown after a plan and in the footer (hidden if unset) | unset |
 | `VOYAGENT_DATA_DIR` | where finished plans are saved for share links | `data` |
-| `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (`SPACE_HOST` is added automatically) | unset |
+| `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (Render's `RENDER_EXTERNAL_HOSTNAME` is added automatically) | unset |
 | `VOYAGENT_LANGUAGE` | language for place names from OpenStreetMap | `en` |
 
 See [docs/configuration.md](docs/configuration.md) for adding tools and tuning behavior, and [docs/](docs/README.md) for the full documentation set.

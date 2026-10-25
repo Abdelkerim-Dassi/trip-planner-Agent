@@ -43,4 +43,4 @@ OpenAI, via a CLI, a FastAPI web app, or as an MCP server inside Claude and Chat
 - **Run modes:** interactive CLI (`python -m voyagent` / `voyagent`), FastAPI web app
   (`python -m voyagent.web`), MCP server (`python -m voyagent.mcp_server`, also served by the
   web app at `/mcp`)
-- **Hosting:** `Dockerfile` for Hugging Face Spaces (Docker SDK, port 7860) or any container host
+- **Hosting:** `Dockerfile` for Render's free plan or any container host

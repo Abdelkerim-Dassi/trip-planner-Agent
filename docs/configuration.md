@@ -117,8 +117,8 @@ See [Setup](setup.md) for getting keys. The code reads:
 | `VOYAGENT_MAX_ACTIVE_PLANS` | crew runs allowed at once in the web app (others get "busy, try again") | `2` |
 | `VOYAGENT_SUPPORT_URL` | donation page shown after a plan and in the footer (hidden if unset) | unset |
 | `VOYAGENT_DATA_DIR` | where finished plans are saved for share links (`<dir>/plans/`) | `data` |
-| `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (`SPACE_HOST` is added automatically) | unset |
+| `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (Render's `RENDER_EXTERNAL_HOSTNAME` and Hugging Face's `SPACE_HOST` are added automatically) | unset |
 | `VOYAGENT_LANGUAGE` | language for place names from OpenStreetMap | `en` |
 | `VOYAGENT_USER_AGENT` | `User-Agent` sent to Nominatim (its policy asks for an identifying one) | `Voyagent/0.2 (open-source AI trip planner)` |
 | `HOST` / `PORT` | bind address for `python -m voyagent.web` (the `Dockerfile` sets `0.0.0.0` / `7860`) | `127.0.0.1` / `8000` |
-| `SPACE_HOST` | set by Hugging Face Spaces; allowed on `/mcp` automatically | — |
+| `RENDER_EXTERNAL_HOSTNAME` / `SPACE_HOST` | set by Render / Hugging Face Spaces; allowed on `/mcp` automatically | — |

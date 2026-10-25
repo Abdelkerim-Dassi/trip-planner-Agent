@@ -1,5 +1,6 @@
 # Voyagent web app + MCP server.
-# Works on Hugging Face Spaces (Docker SDK, free CPU tier) and any container host.
+# Works on Render's free plan, Hugging Face Spaces and any container host.
+# Hosts that set PORT (e.g. Render) override the 7860 default.
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -9,7 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
     HOST=0.0.0.0 \
     PORT=7860
 
-# Hugging Face Spaces runs containers as user 1000.
+# Run as an unprivileged user (uid 1000, as Hugging Face Spaces expects).
 RUN useradd -m -u 1000 voyagent
 WORKDIR /app
 
