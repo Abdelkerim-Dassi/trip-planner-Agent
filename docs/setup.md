@@ -125,7 +125,7 @@ The image runs `python -m voyagent.web` on port 7860 as user 1000, and honours a
 see the root [README](../README.md#deploying-for-free-render)
 for the Render setup.
 
-> **Groq free-tier limits:** Groq caps tokens per minute (~12k) and per day (~100k). Voyagent
+> **Groq free-tier limits:** Groq caps tokens per minute (~12k) and per day (~100k). ReelTrip
 > paces and retries requests to stay under the per-minute cap (see
 > [Configuration](configuration.md)), but a full seven-agent plan is token-heavy, so expect
 > only a few runs per day on the free tier.

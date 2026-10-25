@@ -1,4 +1,4 @@
-"""Voyagent web app: JSON API, website pages and the MCP server in one process.
+"""ReelTrip web app: JSON API, website pages and the MCP server in one process.
 
 Run locally:   uvicorn voyagent.web.app:app --reload
                (or: python -m voyagent.web)
@@ -8,7 +8,7 @@ Routes:
 - ``/p/{id}``           a shareable, server-rendered page for a finished plan
 - ``/api/discover``     TikTok-inspired spots for a destination (seconds)
 - ``/api/plans``        start a full crew plan (minutes); poll ``/api/plans/{id}``
-- ``/mcp``              the Voyagent MCP server (streamable HTTP)
+- ``/mcp``              the ReelTrip MCP server (streamable HTTP)
 """
 
 from __future__ import annotations
@@ -79,7 +79,7 @@ async def _lifespan(_app: FastAPI):
         yield
 
 
-app = FastAPI(title="Voyagent", lifespan=_lifespan, docs_url="/api/docs", redoc_url=None)
+app = FastAPI(title="ReelTrip", lifespan=_lifespan, docs_url="/api/docs", redoc_url=None)
 app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
 
 
@@ -158,7 +158,7 @@ def start_plan(req: PlanRequest) -> dict:
         active = sum(j.status in ("queued", "running") for j in _jobs.values())
         if active >= MAX_ACTIVE_PLANS:
             raise HTTPException(
-                429, "Voyagent is planning other trips right now. Please try again in a few minutes."
+                429, "ReelTrip is planning other trips right now. Please try again in a few minutes."
             )
         job = PlanJob(
             req.origin.strip(),

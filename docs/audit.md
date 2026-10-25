@@ -82,7 +82,7 @@ The project was a flat set of scripts with no package, not importable or install
 
 After the original audit, the project was extended and rebranded:
 
-- **Rebranded to Voyagent.** The package, console script, and env-var prefix were renamed
+- **Rebranded to ReelTrip.** The package, console script, and env-var prefix were renamed
   (`trip_planner` → `voyagent`, `TRIP_PLANNER_*` → `VOYAGENT_*`).
 - **Provider-switchable LLM.** `config.build_llm()` now supports Groq (free) alongside OpenAI via
   `VOYAGENT_PROVIDER`; Groq uses `crewai.LLM` over LiteLLM (`crewai[litellm]`).

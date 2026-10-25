@@ -1,11 +1,13 @@
-# Voyagent
+# ReelTrip
 
-A multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). Give it an origin, candidate destinations, dates and interests, and seven specialized agents pick the best city, research it, and return a verified day-by-day itinerary with logistics, budget and packing notes.
+**From saved reels to real trips.** Live at **[reeltrip.onrender.com](https://reeltrip.onrender.com)**.
+
+ReelTrip (formerly Voyagent) is a multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). Give it an origin, candidate destinations, dates and interests, and seven specialized agents pick the best city, research it, and return a verified day-by-day itinerary with logistics, budget and packing notes.
 
 What makes it different:
 
-- **TikTok to trip plan.** Voyagent reads what travellers share on TikTok about your destination, or the TikTok links you saved, pulls out the places they mention, keeps only the ones OpenStreetMap confirms exist, and puts them on a map. You keep the ones you like and the crew builds them into your plan, with a travel agent's reality check (distance, season, crowds).
-- **Works inside Claude and ChatGPT.** Voyagent is also an [MCP](https://modelcontextprotocol.io) server with grounded tools: trending TikTok spots, place verification, typical weather, prayer times and getting-there options.
+- **TikTok to trip plan.** ReelTrip reads what travellers share on TikTok about your destination, or the TikTok links you saved, pulls out the places they mention, keeps only the ones OpenStreetMap confirms exist, and puts them on a map. You keep the ones you like and the crew builds them into your plan, with a travel agent's reality check (distance, season, crowds).
+- **Works inside Claude and ChatGPT.** ReelTrip is also an [MCP](https://modelcontextprotocol.io) server with grounded tools: trending TikTok spots, place verification, typical weather, prayer times and getting-there options.
 - **Free to run.** Groq's free LLM tier (or OpenAI), Serper's free search tier, and free open data (OpenStreetMap, Open-Meteo, AlAdhan). Hosts free on Render.
 
 ## How it works
@@ -50,7 +52,7 @@ Every agent must ground claims in web search: only real places in the selected c
 │   ├── places.py             # OpenStreetMap place verification and distances
 │   ├── travel_info.py        # Typical weather, prayer times, transfer options
 │   ├── serper.py             # Shared Serper search client (cached)
-│   ├── mcp_server.py         # Voyagent MCP server (stdio or HTTP)
+│   ├── mcp_server.py         # ReelTrip MCP server (stdio or HTTP)
 │   ├── tools/                # CrewAI tools: web search, calculator
 │   └── web/                  # FastAPI app, page templates, static JS/CSS
 ├── Dockerfile                # Container for Render / any host
@@ -132,20 +134,20 @@ The crew runs and the final trip plan prints to the terminal.
 python -m voyagent.web            # http://127.0.0.1:8000
 ```
 
-Fill in the trip form. With **Inspired by TikTok** on (or links pasted), Voyagent first shows the spots travellers love on a map, in about 30 seconds per destination. Untick what you'd skip, click **Build my itinerary**, and follow the crew's progress phase by phase. The finished plan has a **share link** (`/p/<id>`, a server-rendered page that previews well on social media), Markdown download and print-to-PDF.
+Fill in the trip form. With **Inspired by TikTok** on (or links pasted), ReelTrip first shows the spots travellers love on a map, in about 30 seconds per destination. Untick what you'd skip, click **Build my itinerary**, and follow the crew's progress phase by phase. The finished plan has a **share link** (`/p/<id>`, a server-rendered page that previews well on social media), Markdown download and print-to-PDF.
 
 The JSON API is documented at `/api/docs`.
 
-### 6. Use Voyagent from Claude or ChatGPT (MCP)
+### 6. Use ReelTrip from Claude or ChatGPT (MCP)
 
-Voyagent's MCP tools: `trending_spots`, `spots_from_tiktok_links`, `verify_place`, `typical_weather`, `prayer_times`, `transfer_options`, and `plan_trip` (the full crew; slow).
+ReelTrip's MCP tools: `trending_spots`, `spots_from_tiktok_links`, `verify_place`, `typical_weather`, `prayer_times`, `transfer_options`, and `plan_trip` (the full crew; slow).
 
 **Claude Desktop (local):** add this to `claude_desktop_config.json`, then restart Claude:
 
 ```json
 {
   "mcpServers": {
-    "voyagent": {
+    "reeltrip": {
       "command": "python",
       "args": ["-m", "voyagent.mcp_server"],
       "env": {
@@ -158,7 +160,7 @@ Voyagent's MCP tools: `trending_spots`, `spots_from_tiktok_links`, `verify_place
 }
 ```
 
-**Remote (Claude custom connector, ChatGPT apps):** the web app serves the same MCP server at `https://<your-host>/mcp`. Deploy it (below), then add that URL as a custom connector in Claude, or as a connector in ChatGPT's developer mode. To run only the MCP server over HTTP: `python -m voyagent.mcp_server --http --port 8000`.
+**Remote (Claude custom connector, ChatGPT apps):** the web app serves the same MCP server at `https://<your-host>/mcp` (the official one is `https://reeltrip.onrender.com/mcp`). Deploy it (below), then add that URL as a custom connector in Claude, or as a connector in ChatGPT's developer mode. To run only the MCP server over HTTP: `python -m voyagent.mcp_server --http --port 8000`.
 
 ## Deploying for free (Render)
 
@@ -167,7 +169,7 @@ Render's free plan runs the `Dockerfile` with no credit card. Without a card on 
 1. Sign up at [render.com](https://render.com) (signing in with GitHub is easiest).
 2. In the dashboard click **New → Web Service**, choose **Public Git Repository** and enter this repo's GitHub URL (or connect your GitHub account and pick the repo).
 3. Render detects the `Dockerfile`. Pick a region close to your users, set **Instance Type** to **Free**, and leave the start command empty.
-4. Under **Environment Variables**, add `SERPER_API_KEY` and either `GROQ_API_KEY` (plus `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Optionally add `VOYAGENT_SUPPORT_URL` with your Ko-fi or GitHub Sponsors page to show a "Support Voyagent" link.
+4. Under **Environment Variables**, add `SERPER_API_KEY` and either `GROQ_API_KEY` (plus `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Optionally add `VOYAGENT_SUPPORT_URL` with your Ko-fi or GitHub Sponsors page to show a "Support ReelTrip" link.
 5. Click **Deploy Web Service**. The first build takes several minutes. The app is then live at `https://<service-name>.onrender.com`, and the MCP endpoint at `https://<service-name>.onrender.com/mcp`.
 
 Free-plan limits: the service sleeps after 15 minutes without traffic and takes about a minute to wake; its disk is wiped on every restart or redeploy, so shared plan links don't last; and it has 512 MB of memory, which is tight for a full crew run. The same `Dockerfile` also runs on any other container host.
@@ -202,8 +204,10 @@ The provider and model are configured in one place — `src/voyagent/config.py` 
 
 See [docs/configuration.md](docs/configuration.md) for adding tools and tuning behavior, and [docs/](docs/README.md) for the full documentation set.
 
-> **Note on Groq's free tier:** it caps tokens per minute (≈12k) and per day (≈100k). Voyagent paces and retries calls to stay within the per-minute limit, but a full plan is token-heavy, so the free tier allows only a few runs per day. For faster, higher-volume use, switch `VOYAGENT_MODEL` to a lighter model or upgrade to Groq's Dev tier (and set `GROQ_STEP_DELAY_SECONDS=0`).
+> **Note on Groq's free tier:** it caps tokens per minute (≈12k) and per day (≈100k). ReelTrip paces and retries calls to stay within the per-minute limit, but a full plan is token-heavy, so the free tier allows only a few runs per day. For faster, higher-volume use, switch `VOYAGENT_MODEL` to a lighter model or upgrade to Groq's Dev tier (and set `GROQ_STEP_DELAY_SECONDS=0`).
 
 ## License
 
 Personal / educational project.
+
+The Python package and settings keep the original name (`voyagent`, `VOYAGENT_*`), so existing setups keep working.

@@ -1,9 +1,9 @@
-"""Voyagent as an MCP server, so Claude, ChatGPT and other assistants can use it.
+"""ReelTrip as an MCP server, so Claude, ChatGPT and other assistants can use it.
 
 Inside an assistant the host model is already a capable planner; what it lacks
 is grounded, local data. So the main tools are fast lookups (TikTok trends,
 place verification, weather, prayer times, transfers). ``plan_trip`` runs the
-full seven-agent crew for users who want Voyagent's own deep plan; it is slow.
+full seven-agent crew for users who want ReelTrip's own deep plan; it is slow.
 
 Run locally (stdio, e.g. for Claude Desktop):   python -m voyagent.mcp_server
 Run as a remote server (streamable HTTP):        python -m voyagent.mcp_server --http
@@ -23,7 +23,7 @@ from voyagent import places, social, travel_info
 from voyagent.jobs import PHASES, PlanJob
 
 INSTRUCTIONS = """
-Voyagent gives you grounded, verified travel data, with a focus on North Africa
+ReelTrip gives you grounded, verified travel data, with a focus on North Africa
 and the Middle East (halal-friendly, prayer-time aware) but working worldwide.
 
 Good workflow for a trip request:
@@ -35,15 +35,15 @@ Good workflow for a trip request:
 3. verify_place before recommending any place you are unsure exists.
 4. Build the itinerary yourself, grouping places by area. Cite the TikTok
    videos and sources the tools return.
-Use plan_trip only when the user explicitly wants Voyagent's own full plan;
+Use plan_trip only when the user explicitly wants ReelTrip's own full plan;
 it takes several minutes.
 """.strip()
 
 mcp = MCPServer(
-    name="voyagent",
-    title="Voyagent trip planner",
+    name="reeltrip",
+    title="ReelTrip trip planner",
     instructions=INSTRUCTIONS,
-    website_url="https://github.com/",
+    website_url="https://reeltrip.onrender.com",
 )
 
 
@@ -121,7 +121,7 @@ async def transfer_options(origin: str, destination: str) -> dict:
     return await _in_thread(travel_info.transfer_options, origin, destination)
 
 
-@mcp.tool(title="Full Voyagent plan (slow)")
+@mcp.tool(title="Full ReelTrip plan (slow)")
 async def plan_trip(
     origin: str,
     destinations: str,
@@ -130,9 +130,9 @@ async def plan_trip(
     inspiration: str = "",
     ctx: Context | None = None,
 ) -> str:
-    """Run Voyagent's seven-agent crew for a complete, verified itinerary.
+    """Run ReelTrip's seven-agent crew for a complete, verified itinerary.
 
-    Takes several minutes. Only use it when the user asks for Voyagent's own plan.
+    Takes several minutes. Only use it when the user asks for ReelTrip's own plan.
 
     Args:
         origin: Where the traveller starts, e.g. "Paris".
@@ -163,7 +163,7 @@ async def plan_trip(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Voyagent as an MCP server.")
+    parser = argparse.ArgumentParser(description="Run ReelTrip as an MCP server.")
     parser.add_argument("--http", action="store_true", help="serve streamable HTTP instead of stdio")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)

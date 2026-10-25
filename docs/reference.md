@@ -222,7 +222,7 @@ diagram.
 
 ## Web app — `web/`
 
-- `web/app.py` — the FastAPI `app` (title "Voyagent", OpenAPI docs at `/api/docs`). Routes: `/`
+- `web/app.py` — the FastAPI `app` (title "ReelTrip", OpenAPI docs at `/api/docs`). Routes: `/`
   (planner page), `/p/{id}` (share page for a finished plan), `POST /api/discover` (up to
   `MAX_DISCOVER_CITIES` = 3 destinations plus pasted links), `POST /api/plans` (starts a
   `PlanJob`; 422 on bad dates/empty fields, 429 when `VOYAGENT_MAX_ACTIVE_PLANS` are running,

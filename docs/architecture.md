@@ -1,6 +1,6 @@
 # Architecture
 
-Voyagent is a **sequential multi-agent system** orchestrated by CrewAI. Seven agents, each
+ReelTrip is a **sequential multi-agent system** orchestrated by CrewAI. Seven agents, each
 with a distinct role and toolset, run as a `Crew` to transform raw trip inputs into a finished
 travel plan. Around the crew sit a TikTok discovery pipeline, a few grounded lookups (place
 verification, typical weather, prayer times, transfers), a FastAPI web app and an MCP server.
@@ -19,7 +19,7 @@ src/voyagent/
   places.py      OpenStreetMap Nominatim verification (~1 req/s throttle, cached) and great-circle distances.
   social.py      TikTok discovery: Serper search -> LLM place extraction -> Nominatim verification -> ranked spots.
   travel_info.py typical_weather (Open-Meteo archive), prayer_times (AlAdhan), transfer_options (Serper).
-  mcp_server.py  Voyagent MCP server (MCP SDK 2.x MCPServer, 7 tools; stdio or --http).
+  mcp_server.py  ReelTrip MCP server (MCP SDK 2.x MCPServer, 7 tools; stdio or --http).
   tools/
     search_tools.py      SearchTools.search_internet — CrewAI tool over serper.py.
     calculator_tools.py  CalculatorTool.calculate — safe AST evaluator for budget math.
@@ -168,7 +168,7 @@ reasoning loops.
 | `GET /api/plans/{id}` | Poll a plan's status, phase, and result |
 | `GET /healthz` | Health check |
 | `GET /api/docs` | OpenAPI docs for the JSON API |
-| `/mcp` | The Voyagent MCP server (streamable HTTP, stateless) |
+| `/mcp` | The ReelTrip MCP server (streamable HTTP, stateless) |
 
 Jobs report only abstracted progress (one of seven `PHASES`, one per task), never the agents'
 raw reasoning. Finished plans are written to `VOYAGENT_DATA_DIR/plans/<id>.json` so share

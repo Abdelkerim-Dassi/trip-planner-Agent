@@ -1,4 +1,4 @@
-// Voyagent planner page: discover TikTok spots, let the traveller keep or skip
+// ReelTrip planner page: discover TikTok spots, let the traveller keep or skip
 // them, then run the crew and render the finished plan.
 (() => {
   const $ = (id) => document.getElementById(id);

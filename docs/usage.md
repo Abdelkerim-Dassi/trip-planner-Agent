@@ -1,6 +1,6 @@
 # Usage
 
-Voyagent runs three ways: an interactive **CLI**, a **web app** (FastAPI), and an **MCP
+ReelTrip runs three ways: an interactive **CLI**, a **web app** (FastAPI), and an **MCP
 server** for Claude, ChatGPT and other assistants. All of them drive the same `TripCrew`.
 
 ## CLI
@@ -48,7 +48,7 @@ python -m voyagent.web            # http://127.0.0.1:8000
 
 - Fill in **where from**, **where to** (one or more comma-separated places), the **dates**
   (two date pickers), and **what you love**.
-- **Inspired by TikTok** (on by default) and/or pasted TikTok links: Voyagent first shows the
+- **Inspired by TikTok** (on by default) and/or pasted TikTok links: ReelTrip first shows the
   spots travellers love on a **Leaflet map**, in about 30 seconds per destination (up to 3
   destinations). Every spot is confirmed on OpenStreetMap and links back to its videos. Untick
   what you'd skip, then click **Build my itinerary**; the spots you keep are passed to the
@@ -88,7 +88,7 @@ restart, so shared plan links don't last.
 
 ## MCP server (Claude, ChatGPT)
 
-Voyagent's MCP tools:
+ReelTrip's MCP tools:
 
 | Tool | What it returns |
 |---|---|
@@ -101,7 +101,7 @@ Voyagent's MCP tools:
 | `plan_trip(origin, destinations, travel_dates, interests, inspiration)` | The full seven-agent plan (slow; several minutes) |
 
 The server's instructions tell the assistant to use the fast lookups and build the itinerary
-itself, and to call `plan_trip` only when the user explicitly wants Voyagent's own plan.
+itself, and to call `plan_trip` only when the user explicitly wants ReelTrip's own plan.
 
 **Claude Desktop (local, stdio):** add this to `claude_desktop_config.json`, then restart
 Claude:

@@ -3,7 +3,7 @@
 Two entry points:
 
 - :func:`trending_spots` — "what does TikTok love in Tunisia in December?"
-  Searches Google's index of TikTok videos (through Serper), so Voyagent never
+  Searches Google's index of TikTok videos (through Serper), so ReelTrip never
   scrapes TikTok or downloads videos.
 - :func:`spots_from_links` — the user pastes TikTok links they saved; each is
   looked up the same way to read its caption.
