@@ -48,6 +48,13 @@ STEP_DELAY_SECONDS = float(
     )
 )
 
+#: How plans are made: "crew" (seven agents, best on OpenAI or Gemini) or
+#: "quick" (one grounded call; fits Groq's 8k-tokens-a-minute free tier, where
+#: the crew cannot run). Defaults to "quick" on Groq.
+PLAN_MODE = os.environ.get(
+    "VOYAGENT_PLAN_MODE", "quick" if PROVIDER == "groq" else "crew"
+).lower()
+
 # --- Required secrets ----------------------------------------------------------
 
 #: The API key each provider needs for the LLM.

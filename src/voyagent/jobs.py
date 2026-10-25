@@ -12,6 +12,8 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
+from voyagent import config
+
 #: One phase per crew task, in run order (see voyagent.crew).
 PHASES = [
     ("✈️", "Choosing your destination"),
@@ -72,13 +74,24 @@ class PlanJob:
 
         self.status = "running"
         try:
-            from voyagent.crew import TripCrew  # heavy import; only when planning
+            if config.PLAN_MODE == "quick":
+                from voyagent.quick_plan import quick_plan
 
-            crew = TripCrew(
-                self.origin, self.cities, self.travel_dates, self.interests, self.inspiration
-            )
-            result = crew.run(step_callback=step_callback, task_callback=task_callback)
-            self.result = getattr(result, "raw", None) or str(result)
+                def on_phase(index: int) -> None:
+                    self.completed = max(self.completed, min(index + 1, len(PHASES)))
+
+                self.result = quick_plan(
+                    self.origin, self.cities, self.travel_dates, self.interests,
+                    self.inspiration, on_phase=on_phase,
+                )
+            else:
+                from voyagent.crew import TripCrew  # heavy import; only when planning
+
+                crew = TripCrew(
+                    self.origin, self.cities, self.travel_dates, self.interests, self.inspiration
+                )
+                result = crew.run(step_callback=step_callback, task_callback=task_callback)
+                self.result = getattr(result, "raw", None) or str(result)
             self.completed = len(PHASES)
             self.status = "done"
         except Exception as exc:  # reported to the client, not raised
