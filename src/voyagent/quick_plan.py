@@ -171,5 +171,8 @@ def quick_plan(
             break
     for phase in (4, 5, 6):
         done(phase)
+    # gpt-oss writes narrow no-break spaces and non-breaking hyphens
+    # ("Sidi Bou Said"), which break search and copy-paste.
+    plan = plan.translate({0x202F: " ", 0x00A0: " ", 0x2007: " ", 0x2011: "-"})
     # Models sometimes wrap the whole answer in a markdown fence.
     return re.sub(r"^```(?:markdown)?\s*|\s*```$", "", plan)
