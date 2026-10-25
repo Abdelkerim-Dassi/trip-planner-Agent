@@ -28,8 +28,7 @@ from fastapi.templating import Jinja2Templates
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
-from voyagent import social
-from voyagent import config
+from voyagent import config, social
 from voyagent.config import MissingConfigError, validate_env
 from voyagent.jobs import PHASES, PlanJob
 from voyagent.mcp_server import mcp
