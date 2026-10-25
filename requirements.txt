@@ -1,6 +1,6 @@
 # For pip users. Poetry users: use `poetry install` (see pyproject.toml / poetry.lock).
 # [litellm] extra is required for non-native providers like Groq.
-crewai[litellm]>=0.130.0
+crewai[litellm]==0.193.2  # pinned to the tested version
 langchain>=0.3.27
 langchain-openai>=0.3.28
 langchain-community>=0.3.27
@@ -10,4 +10,4 @@ requests>=2.31.0
 fastapi>=0.115
 uvicorn[standard]>=0.30
 jinja2>=3.1
-mcp>=2.3,<3
+mcp==2.3.0  # pinned to the tested version (2.x API)

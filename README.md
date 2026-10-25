@@ -1,3 +1,13 @@
+---
+title: Voyagent
+emoji: ✈️
+colorFrom: pink
+colorTo: purple
+sdk: docker
+app_port: 7860
+short_description: Turn TikTok travel spots into a verified trip plan
+---
+
 # Voyagent
 
 A multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). Give it an origin, candidate destinations, dates and interests, and seven specialized agents pick the best city, research it, and return a verified day-by-day itinerary with logistics, budget and packing notes.
@@ -163,17 +173,7 @@ Voyagent's MCP tools: `trending_spots`, `spots_from_tiktok_links`, `verify_place
 ## Deploying for free (Hugging Face Spaces)
 
 1. Create a new Space at [huggingface.co/new-space](https://huggingface.co/new-space) with **SDK: Docker** (blank template) and the free CPU hardware. No credit card is needed.
-2. Push this repo to the Space. The Space's `README.md` must start with this header (add it to the copy you push to the Space):
-   ```yaml
-   ---
-   title: Voyagent
-   emoji: ✈️
-   colorFrom: pink
-   colorTo: purple
-   sdk: docker
-   app_port: 7860
-   ---
-   ```
+2. Push this repo to the Space's `main` branch (`git push <space-remote> master:main`). The header at the top of this README (`sdk: docker`, `app_port: 7860`) is what tells Hugging Face how to build and serve it.
 3. In **Settings → Variables and secrets**, add the secrets `SERPER_API_KEY` and either `GROQ_API_KEY` (plus the variable `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Optionally set `VOYAGENT_SUPPORT_URL` to your Ko-fi or GitHub Sponsors page to show a "Support Voyagent" link.
 
 Free Spaces sleep after a period of inactivity and wake on the next visit, and their disk is not persistent, so shared plan links last only until the Space restarts. The same `Dockerfile` runs on Render, Koyeb, Railway or any container host.
