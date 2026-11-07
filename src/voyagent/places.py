@@ -57,6 +57,7 @@ class Place:
     osm_url: str
     category: str = ""  # OSM key, e.g. "place", "natural", "tourism", "amenity"
     osm_type: str = ""  # OSM value, e.g. "town", "beach", "hotel", "museum"
+    opening_hours: str = ""  # OSM opening_hours tag, when mapped
 
     @property
     def is_city(self) -> bool:
@@ -79,6 +80,7 @@ def _throttled_get(params: dict) -> list[dict]:
                 params={
                     "format": "jsonv2",
                     "addressdetails": 1,
+                    "extratags": 1,
                     "limit": 1,
                     "accept-language": LANGUAGE,
                     **params,
@@ -117,6 +119,7 @@ def geocode(query: str, country_code: str = "") -> Place | None:
         osm_url=f"https://www.openstreetmap.org/{hit.get('osm_type')}/{hit.get('osm_id')}",
         category=hit.get("category", ""),
         osm_type=hit.get("type", ""),
+        opening_hours=(hit.get("extratags") or {}).get("opening_hours", ""),
     )
 
 

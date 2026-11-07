@@ -116,7 +116,13 @@ See [Setup](setup.md) for getting keys. The code reads:
 | `GROQ_STEP_DELAY_SECONDS` / `GROQ_NUM_RETRIES` / `CREW_MAX_ATTEMPTS` | Groq pacing/retries | `10` / `8` / `3` |
 | `VOYAGENT_MAX_ACTIVE_PLANS` | crew runs allowed at once in the web app (others get "busy, try again") | `2` |
 | `VOYAGENT_SUPPORT_URL` | donation page shown after a plan and in the footer (hidden if unset) | unset |
-| `VOYAGENT_DATA_DIR` | where finished plans are saved for share links (`<dir>/plans/`) | `data` |
+| `GEMINI_API_KEY` | free Gemini: fallback when the main model is busy, and the default helper model | No (recommended) |
+| `VOYAGENT_HELPER_MODEL` | LiteLLM model id for side jobs: finding scheduled places, reading opening hours from search snippets, writing captions (`hours.py`, `content.py`) | `VOYAGENT_FALLBACK_MODEL`, else the discovery model |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis (free, no card) via REST, so plans, checked hours (30 days) and captions survive restarts (`storage.py`) | unset: local files only |
+| `VOYAGENT_DATA_DIR` | local copy of stored records (`<dir>/plans/`, `<dir>/hours/`, `<dir>/social/`, `<dir>/halal/`) | `data` |
+| `VOYAGENT_PUBLIC_URL` | site address in link previews (`og:image`) and calendar files; Render's `RENDER_EXTERNAL_URL` is used when unset | the request's address |
+| `VOYAGENT_PUBLIC_HOST` | address printed on share images | `reeltrip.onrender.com` |
+| `VOYAGENT_FONT` / `VOYAGENT_FONT_BOLD` | TrueType fonts for share images (the Docker image uses DejaVu) | DejaVu, then Segoe UI / Arial |
 | `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (Render's `RENDER_EXTERNAL_HOSTNAME` and Hugging Face's `SPACE_HOST` are added automatically) | unset |
 | `VOYAGENT_LANGUAGE` | language for place names from OpenStreetMap | `en` |
 | `VOYAGENT_USER_AGENT` | `User-Agent` sent to Nominatim (its policy asks for an identifying one) | `ReelTrip/0.2 (open-source AI trip planner)` |

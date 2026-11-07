@@ -27,6 +27,10 @@
   <label>💛 What do you love?
     <input name="interests" placeholder="food, history, desert, beaches" required>
   </label>
+  <label class="check halal">
+    <input type="checkbox" name="halal">
+    🕌 Halal food and prayer times in my plan
+  </label>
 
   <fieldset class="tiktok">
     <legend>📱 Inspired by TikTok</legend>
@@ -64,8 +68,11 @@
 <section id="result" hidden>
   <div class="result-head">🧳 Your itinerary</div>
   <article class="card plan" id="plan"></article>
+  <section class="card" id="checks" hidden></section>
   <div class="actions">
+    <a class="button" id="post" href="#">📸 Post this trip</a>
     <button type="button" id="share">🔗 Copy share link</button>
+    <a class="button" id="ics" href="#">📅 Add to calendar</a>
     <button type="button" id="download">⬇️ Download</button>
     <button type="button" id="print">🖨️ Print / PDF</button>
     <button type="button" id="again">↺ Plan another trip</button>
@@ -81,5 +88,6 @@
 
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="/static/app.js"></script>
+<script src="/static/checks.js?v=2"></script>
+<script src="/static/app.js?v=2"></script>
 {% endblock %}

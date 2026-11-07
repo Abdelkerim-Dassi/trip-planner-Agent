@@ -6,6 +6,8 @@ Run locally:   uvicorn voyagent.web.app:app --reload
 Routes:
 - ``/``                 the planner page
 - ``/p/{id}``           a shareable, server-rendered page for a finished plan
+- ``/p/{id}/post``      the plan as a ready-to-post carousel and caption
+- ``/p/{id}/og.png``    link preview image; ``/p/{id}/plan.ics`` calendar export
 - ``/api/discover``     TikTok-inspired spots for a destination (seconds)
 - ``/api/plans``        start a full crew plan (minutes); poll ``/api/plans/{id}``
 - ``/mcp``              the ReelTrip MCP server (streamable HTTP)
@@ -14,28 +16,28 @@ Routes:
 from __future__ import annotations
 
 import contextlib
-import json
+import io
 import os
 import re
 import threading
+import zipfile
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
-from voyagent import config, social
+from voyagent import config, content, exports, share_images, social, storage
 from voyagent.config import MissingConfigError, validate_env
 from voyagent.jobs import PHASES, PlanJob
 from voyagent.mcp_server import mcp
 
 _HERE = Path(__file__).resolve().parent
-#: Where finished plans are saved so share links outlive the process.
-DATA_DIR = Path(os.environ.get("VOYAGENT_DATA_DIR", "data")) / "plans"
 #: Crew runs are heavy; cap how many run at once on a small free host.
 MAX_ACTIVE_PLANS = int(os.environ.get("VOYAGENT_MAX_ACTIVE_PLANS", "2"))
 #: Optional donation page (Ko-fi, GitHub Sponsors, ...) shown after a plan.
@@ -46,6 +48,8 @@ _JOB_ID = re.compile(r"^[0-9a-f]{12}$")
 templates = Jinja2Templates(directory=_HERE / "templates")
 _jobs: dict[str, PlanJob] = {}
 _jobs_lock = threading.Lock()
+#: Finished jobs already written to storage.
+_saved: set[str] = set()
 
 
 def _allowed_hosts() -> list[str]:
@@ -94,8 +98,7 @@ def _require_config() -> None:
 
 
 def _save(job: PlanJob) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    (DATA_DIR / f"{job.id}.json").write_text(json.dumps(job.to_dict()), encoding="utf-8")
+    storage.save("plans", job.id, job.to_dict())
 
 
 def _load(job_id: str) -> dict | None:
@@ -104,11 +107,11 @@ def _load(job_id: str) -> dict | None:
     with _jobs_lock:
         job = _jobs.get(job_id)
     if job is not None:
-        if job.status == "done" and not (DATA_DIR / f"{job.id}.json").exists():
+        if job.status == "done" and job.id not in _saved:
             _save(job)
+            _saved.add(job.id)
         return job.to_dict()
-    path = DATA_DIR / f"{job_id}.json"
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    return storage.load("plans", job_id)
 
 
 # --- API ---------------------------------------------------------------------
@@ -129,6 +132,7 @@ class PlanRequest(BaseModel):
     end: date
     interests: str
     inspiration: str = ""
+    halal: bool = False
 
 
 @app.post("/api/discover")
@@ -167,6 +171,7 @@ def start_plan(req: PlanRequest) -> dict:
             f"{req.start:%d %B %Y} - {req.end:%d %B %Y}",
             req.interests.strip(),
             req.inspiration.strip(),
+            halal=req.halal,
         )
         _jobs[job.id] = job
     return job.start().to_dict()
@@ -189,6 +194,8 @@ def healthz() -> dict:
         "model": config.litellm_model(),
         "discovery_model": config.discovery_model(),
         "fallback_model": config.fallback_model() or None,
+        "helper_model": config.helper_model(),
+        "plans_persist": storage.is_remote(),
     }
 
 
@@ -204,13 +211,100 @@ def index(request: Request):
     )
 
 
-@app.get("/p/{job_id}", response_class=HTMLResponse)
-def shared_plan(request: Request, job_id: str):
+def _finished(job_id: str) -> dict:
     data = _load(job_id)
     if data is None or data["status"] != "done":
         raise HTTPException(404, "This plan doesn't exist or isn't finished yet.")
+    return data
+
+
+def _public_url(request: Request) -> str:
+    """This site's address as visitors see it (Render serves us behind a proxy)."""
+    base = os.environ.get("VOYAGENT_PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_URL")
+    return (base or str(request.base_url)).rstrip("/")
+
+
+@lru_cache(maxsize=16)
+def _slides(job_id: str) -> tuple[bytes, ...]:
+    # Finished plans don't change, so their slides are rendered once.
+    return tuple(share_images.slides(_finished(job_id)))
+
+
+_IMAGE_HEADERS = {"Cache-Control": "public, max-age=86400"}
+
+
+@app.get("/p/{job_id}", response_class=HTMLResponse)
+def shared_plan(request: Request, job_id: str):
+    data = _finished(job_id)
     return templates.TemplateResponse(
-        request, "plan.html", {"plan": data, "support_url": SUPPORT_URL}
+        request,
+        "plan.html",
+        {"plan": data, "support_url": SUPPORT_URL, "public_url": _public_url(request)},
+    )
+
+
+@app.get("/p/{job_id}/og.png")
+def plan_og_image(job_id: str) -> Response:
+    return Response(share_images.og_card(_finished(job_id)), media_type="image/png", headers=_IMAGE_HEADERS)
+
+
+@app.get("/p/{job_id}/slide/{number}.png")
+def plan_slide(job_id: str, number: int) -> Response:
+    slides = _slides(job_id)
+    if not 1 <= number <= len(slides):
+        raise HTTPException(404, "No such slide.")
+    return Response(slides[number - 1], media_type="image/png", headers=_IMAGE_HEADERS)
+
+
+@app.get("/p/{job_id}/slides.zip")
+def plan_slides_zip(job_id: str) -> Response:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as archive:
+        for number, png in enumerate(_slides(job_id), 1):
+            archive.writestr(f"reeltrip-{job_id}-{number:02d}.png", png)
+    return Response(
+        buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="reeltrip-{job_id}-slides.zip"'},
+    )
+
+
+@app.get("/p/{job_id}/plan.ics")
+def plan_calendar(request: Request, job_id: str) -> Response:
+    data = _finished(job_id)
+    return Response(
+        exports.to_ics(data, f"{_public_url(request)}/p/{job_id}"),
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="reeltrip-{job_id}.ics"'},
+    )
+
+
+@app.get("/api/plans/{job_id}/social")
+def plan_social(job_id: str) -> dict:
+    """A ready-to-post caption for the plan, written once and then kept."""
+    _finished(job_id)
+    cached = storage.load("social", job_id)
+    if cached:
+        return cached
+    post = content.social_post(_finished(job_id))
+    if not post:
+        raise HTTPException(503, "Couldn't write a caption right now. Try again in a minute.")
+    storage.save("social", job_id, post)
+    return post
+
+
+@app.get("/p/{job_id}/post", response_class=HTMLResponse)
+def plan_post(request: Request, job_id: str):
+    data = _finished(job_id)
+    return templates.TemplateResponse(
+        request,
+        "post.html",
+        {
+            "plan": data,
+            "slide_count": len(_slides(job_id)),
+            "support_url": SUPPORT_URL,
+            "public_url": _public_url(request),
+        },
     )
 
 

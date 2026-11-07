@@ -10,6 +10,7 @@ the same grounding and pacing rules the crew follows.
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from textwrap import dedent
 from typing import Callable
 
@@ -20,7 +21,9 @@ from voyagent.tasks import _GROUNDING_RULES, _PACING_RULES, _full_plan_guardrail
 from voyagent.travel_info import (
     LookupError_,
     calendar_facts,
+    halal_places,
     parse_date_range,
+    prayer_times,
     trip_calendar,
     typical_weather,
 )
@@ -74,6 +77,37 @@ def _research(city: str, interests: str, month: str) -> str:
     return "\n".join(lines)
 
 
+def _halal_facts(city: str, travel_dates: str) -> str:
+    """Prayer times and OSM-tagged halal places for a halal-aware plan."""
+    lines = [
+        f"### Halal and prayer facts for {city}",
+        "The traveller eats halal only and prays the five daily prayers. Suggest "
+        "halal food (in Muslim-majority countries most local food is; elsewhere "
+        "prefer the places below), avoid alcohol-led venues, and keep each "
+        "prayer window and Friday midday prayer free; name a mosque near the "
+        "day's area when one is in the notes.",
+    ]
+    parsed = parse_date_range(travel_dates)
+    try:
+        t = prayer_times(city, f"{parsed[0]:%Y-%m-%d}" if parsed else "")["times"]
+        lines.append(
+            "Prayer times (first day; they shift by minutes over the trip): "
+            + ", ".join(f"{k} {v}" for k, v in t.items())
+        )
+    except LookupError_:
+        pass
+    try:
+        found = halal_places(city)["halal_places"]
+    except LookupError_:
+        found = []
+    if found:
+        lines.append(
+            "Places tagged halal on OpenStreetMap: "
+            + "; ".join(f"{p['name']} ({p['cuisine'] or p['kind']})" for p in found)
+        )
+    return "\n".join(lines)
+
+
 def quick_plan(
     origin: str,
     cities: str,
@@ -81,6 +115,7 @@ def quick_plan(
     interests: str,
     inspiration: str = "",
     on_phase: PhaseCallback | None = None,
+    halal: bool = False,
 ) -> str:
     """Return a markdown day-by-day plan; raises if the model call fails."""
     done = on_phase or (lambda _i: None)
@@ -88,7 +123,12 @@ def quick_plan(
     month = _month(travel_dates)
 
     done(0)  # destination candidates read
-    notes = "\n\n".join(_research(c, interests, month) for c in candidates)
+    # The halal lookup (Overpass) can be slow, so it runs beside the research.
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        halal_future = pool.submit(_halal_facts, candidates[0], travel_dates) if halal else None
+        notes = "\n\n".join(_research(c, interests, month) for c in candidates)
+        if halal_future is not None:
+            notes += "\n\n" + halal_future.result()
     done(1)  # city research gathered
     facts = calendar_facts(travel_dates) or (
         "Trip calendar: work out each day's weekday carefully."
@@ -135,7 +175,10 @@ def quick_plan(
         3. One section for EVERY day of the trip, {headings}, with morning,
            lunch, afternoon and evening, the area for each half-day, travel time
            between areas, and a one-line indoor **Plan B** on outdoor-heavy days.
-        4. Weather in °C, a packing list, and a budget table in one currency with a total.
+        4. Weather in °C, a packing list, and a budget table per person in one
+           currency, with low / likely / high columns, a total row, and a
+           "Hidden costs" line (tips, tourist tax, guides, entry fees for
+           cameras) so nothing surprises the traveller.
 
         {_PACING_RULES}
 
@@ -169,8 +212,7 @@ def quick_plan(
         ok, _ = check(type("Out", (), {"raw": plan})())
         if ok and all(name in plan.lower() for name in saved):
             break
-    for phase in (4, 5, 6):
-        done(phase)
+    done(4)  # drafted; the opening-hours check (voyagent.hours) comes next
     # gpt-oss writes narrow no-break spaces and non-breaking hyphens
     # ("Sidi Bou Said"), which break search and copy-paste.
     plan = plan.translate({0x202F: " ", 0x00A0: " ", 0x2007: " ", 0x2011: "-"})

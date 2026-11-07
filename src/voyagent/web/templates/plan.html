@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Trip plan from {{ plan.request.origin }} · {{ plan.request.travel_dates }} · ReelTrip{% endblock %}
-{% block description %}A verified day-by-day trip plan ({{ plan.request.cities }}) made with ReelTrip, the AI travel crew.{% endblock %}
+{% block description %}A verified day-by-day trip plan ({{ plan.request.cities }}) made with ReelTrip: every stop checked on the map and against its opening days.{% endblock %}
+{% block social_meta %}
+  <meta property="og:url" content="{{ public_url }}/p/{{ plan.id }}">
+  <meta property="og:image" content="{{ public_url }}/p/{{ plan.id }}/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ public_url }}/p/{{ plan.id }}/og.png">
+{% endblock %}
 {% block content %}
 <header class="hero hero-small">
   <span class="badge">✈️ Shared trip plan</span>
@@ -8,17 +16,23 @@
   <p>From {{ plan.request.origin }} · {{ plan.request.travel_dates }} · loves {{ plan.request.interests }}</p>
 </header>
 <article class="card plan" id="plan"></article>
+<section class="card" id="checks" hidden></section>
 <div class="actions">
   <a class="button" href="/">✨ Plan your own trip</a>
+  <a class="button" href="/p/{{ plan.id }}/post">📸 Post this trip</a>
+  <a class="button" href="/p/{{ plan.id }}/plan.ics">📅 Add to calendar</a>
   <button type="button" onclick="window.print()">🖨️ Print / PDF</button>
 </div>
 <script type="application/json" id="plan-data">{{ plan.result | tojson }}</script>
+<script type="application/json" id="checks-data">{{ (plan.checks or []) | tojson }}</script>
 {% endblock %}
 {% block scripts %}
+<script src="/static/checks.js?v=2"></script>
 <script>
   window.addEventListener("DOMContentLoaded", () => {
     const md = JSON.parse(document.getElementById("plan-data").textContent);
     document.getElementById("plan").innerHTML = DOMPurify.sanitize(marked.parse(md));
+    window.renderChecks(JSON.parse(document.getElementById("checks-data").textContent), document.getElementById("checks"));
   });
 </script>
 {% endblock %}

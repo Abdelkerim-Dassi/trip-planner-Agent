@@ -26,6 +26,14 @@ PHASES = [
 ]
 
 
+#: Added to the interests for the crew when the traveller asks for halal food
+#: and prayer times (quick mode adds verified facts instead, see quick_plan).
+HALAL_NOTE = (
+    "; halal food only (no pork, no alcohol-led venues), and plan around the five "
+    "daily prayers, with Friday midday prayer kept free"
+)
+
+
 @dataclass
 class PlanJob:
     origin: str
@@ -33,12 +41,14 @@ class PlanJob:
     travel_dates: str
     interests: str
     inspiration: str = ""
+    halal: bool = False  # halal food and prayer-time aware plan
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     status: str = "queued"  # queued | running | done | error
     completed: int = 0
     steps: int = 0
     result: str = ""
     error: str = ""
+    checks: list = field(default_factory=list)  # opening-hours checks (hours.py)
     created: float = field(default_factory=time.time)
 
     @property
@@ -56,11 +66,14 @@ class PlanJob:
             "steps": self.steps,
             "result": self.result,
             "error": self.error,
+            "checks": self.checks,
+            "created": self.created,
             "request": {
                 "origin": self.origin,
                 "cities": self.cities,
                 "travel_dates": self.travel_dates,
                 "interests": self.interests,
+                "halal": self.halal,
             },
         }
 
@@ -82,16 +95,24 @@ class PlanJob:
 
                 self.result = quick_plan(
                     self.origin, self.cities, self.travel_dates, self.interests,
-                    self.inspiration, on_phase=on_phase,
+                    self.inspiration, on_phase=on_phase, halal=self.halal,
                 )
             else:
                 from voyagent.crew import TripCrew  # heavy import; only when planning
 
+                interests = self.interests + (HALAL_NOTE if self.halal else "")
                 crew = TripCrew(
-                    self.origin, self.cities, self.travel_dates, self.interests, self.inspiration
+                    self.origin, self.cities, self.travel_dates, interests, self.inspiration
                 )
                 result = crew.run(step_callback=step_callback, task_callback=task_callback)
                 self.result = getattr(result, "raw", None) or str(result)
+                # Crew phases are all done; the hours check is the last step.
+                self.completed = len(PHASES) - 1
+            from voyagent.hours import check_plan, chosen_city
+
+            self.result, self.checks = check_plan(
+                self.result, chosen_city(self.result, self.cities), self.travel_dates
+            )
             self.completed = len(PHASES)
             self.status = "done"
         except Exception as exc:  # reported to the client, not raised

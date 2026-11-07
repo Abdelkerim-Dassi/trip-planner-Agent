@@ -276,9 +276,11 @@ class TravelTasks:
                   give a short "typical for the season" note instead of inventing
                   specific numbers.
                 - **Packing list** suited to that weather.
-                - **Budget**: a markdown table with a category column and an
-                  amount column. Use ONE consistent currency symbol throughout
-                  (e.g. €120, never a bare 120), and include a total.
+                - **Budget**: a per-person markdown table with a category
+                  column and low / likely / high amount columns. Use ONE
+                  consistent currency symbol throughout (e.g. €120, never a
+                  bare 120), include a total row, and add a "Hidden costs"
+                  line (tips, tourist tax, guides, camera fees).
 
                 **Trip parameters:**
                 - Travel dates: {travel_dates}

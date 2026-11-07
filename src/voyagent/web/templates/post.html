@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Post your {{ plan.request.cities }} trip · ReelTrip{% endblock %}
+{% block description %}Your ReelTrip plan as a ready-to-post carousel and caption.{% endblock %}
+{% block social_meta %}
+  <meta property="og:image" content="{{ public_url }}/p/{{ plan.id }}/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+{% block content %}
+<header class="hero hero-small">
+  <span class="badge">📸 Post this trip</span>
+  <h1>{{ plan.request.cities }}</h1>
+  <p>A carousel for Instagram or a TikTok photo post, plus a caption. Save the slides, paste the caption, post.</p>
+</header>
+<section class="card">
+  <h2>1. Save the slides</h2>
+  <p class="muted small">On a phone, press and hold a slide to save it. On a computer, download them all.</p>
+  <div class="slides">
+    {% for n in range(1, slide_count + 1) %}
+    <a href="/p/{{ plan.id }}/slide/{{ n }}.png" target="_blank" rel="noopener">
+      <img src="/p/{{ plan.id }}/slide/{{ n }}.png" alt="Slide {{ n }} of {{ slide_count }}" loading="lazy" width="1080" height="1350">
+    </a>
+    {% endfor %}
+  </div>
+  <a class="button" href="/p/{{ plan.id }}/slides.zip">⬇️ Download all slides</a>
+</section>
+<section class="card">
+  <h2>2. Copy the caption</h2>
+  <p class="muted small" id="caption-status">Writing a caption from your plan…</p>
+  <div id="caption-wrap" hidden>
+    <div class="post-section"><h3>Hook (first line)</h3><div class="caption-box" id="hook"></div></div>
+    <div class="post-section"><h3>Caption</h3><div class="caption-box" id="caption"></div></div>
+    <div class="actions post-section">
+      <button type="button" id="copy-caption">📋 Copy caption + hashtags</button>
+    </div>
+    <div class="post-section"><h3>Voice-over for a video (about 20 seconds)</h3><div class="caption-box" id="script"></div></div>
+  </div>
+</section>
+<div class="actions">
+  <a class="button" href="/p/{{ plan.id }}">← Back to the plan</a>
+  <a class="button" href="/">✨ Plan another trip</a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (async () => {
+    const $ = (id) => document.getElementById(id);
+    let full = "";
+    try {
+      const res = await fetch("/api/plans/{{ plan.id }}/social");
+      const post = await res.json();
+      if (!res.ok) throw new Error(post.detail || "failed");
+      const tags = (post.hashtags || []).map((t) => "#" + t).join(" ");
+      $("hook").textContent = post.hook;
+      $("caption").textContent = post.caption + (tags ? "\n\n" + tags : "");
+      $("script").textContent = post.script;
+      full = `${post.hook}\n\n${post.caption}${tags ? "\n\n" + tags : ""}`;
+      $("caption-status").hidden = true;
+      $("caption-wrap").hidden = false;
+    } catch (err) {
+      $("caption-status").textContent = `Couldn't write a caption right now (${err.message}). Reload the page to try again.`;
+    }
+    $("copy-caption").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(full);
+        $("copy-caption").textContent = "✓ Copied";
+      } catch {
+        prompt("Copy your caption:", full);
+      }
+      setTimeout(() => { $("copy-caption").textContent = "📋 Copy caption + hashtags"; }, 2500);
+    });
+  })();
+</script>
+{% endblock %}

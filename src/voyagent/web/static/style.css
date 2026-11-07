@@ -138,6 +138,9 @@ button:hover, .button:hover { border-color: var(--pink); }
 .plan h1, .plan h2, .plan h3 { font-family: "Playfair Display", serif; line-height: 1.25; }
 .plan table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
 .plan th, .plan td { border: 1px solid var(--line); padding: .4rem .6rem; text-align: left; }
+/* Cells wrap between words only; a wide table scrolls sideways instead. */
+.plan th, .plan td { overflow-wrap: normal; min-width: 6.5rem; }
+.plan td:nth-child(3), .plan th:nth-child(3) { min-width: 12rem; }
 .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.2rem; }
 .support { background: #fff8fb; }
 
@@ -145,6 +148,22 @@ button:hover, .button:hover { border-color: var(--pink); }
 
 @media print {
   body { background: #fff; }
-  .hero, form, #discover, #progress, .actions, .support, .foot, .result-head { display: none !important; }
+  .hero, form, #discover, #progress, .actions, .support, .foot, .result-head, #checks { display: none !important; }
   .card { box-shadow: none; border: none; padding: 0; }
 }
+
+/* What we checked */
+.checks { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: .7rem; }
+.checks li { border: 1px solid var(--line); border-radius: 14px; padding: .65rem .8rem; background: #fffdfc; }
+.check-badges { margin: .3rem 0 .15rem; display: flex; flex-wrap: wrap; gap: .35rem; }
+a.pill { text-decoration: none; }
+.pill.moved { background: #eef2ff; color: #4b44c9; }
+.pill.warn { background: #fff1e6; color: #b45309; }
+.pill.unknown { background: #f4eff5; color: var(--muted); font-weight: 500; }
+
+/* Post this trip */
+.slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .7rem; margin: .8rem 0; }
+.slides img { width: 100%; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.caption-box { white-space: pre-wrap; background: #fff8fb; border: 1px dashed #ffc2d4; border-radius: 14px; padding: .8rem 1rem; font-size: .92rem; }
+.post-section { margin-top: 1rem; }
+.post-section h3 { margin: 0 0 .4rem; font-size: 1rem; }

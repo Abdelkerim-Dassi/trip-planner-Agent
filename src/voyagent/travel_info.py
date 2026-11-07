@@ -22,6 +22,7 @@ REQUEST_TIMEOUT_SECONDS = 20
 OPEN_METEO_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 ALADHAN_TIMINGS = "https://api.aladhan.com/v1/timings/{day}"
 ALADHAN_HIJRI_CALENDAR = "https://api.aladhan.com/v1/gToHCalendar/{month}/{year}"
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 #: Date formats accepted for a "start - end" travel date range.
 _DATE_FORMATS = ("%d %B %Y", "%d %b %Y", "%Y-%m-%d", "%B %d, %Y", "%d/%m/%Y")
 #: Longest trip for which a day-by-day calendar is generated.
@@ -126,6 +127,52 @@ def prayer_times(place: str, day: str = "") -> dict:
         "method": data["meta"]["method"]["name"],
         "source": "AlAdhan prayer times API (aladhan.com)",
     }
+
+
+@lru_cache(maxsize=256)
+def halal_places(place: str, radius_m: int = 4000, limit: int = 10) -> dict:
+    """Restaurants and cafés tagged halal on OpenStreetMap around ``place``.
+
+    Coverage varies: in Muslim-majority countries most food is halal and few
+    places carry the tag, so an empty list doesn't mean there is none.
+    """
+    from voyagent import storage
+    from voyagent.places import USER_AGENT
+
+    loc = _place(place)
+    cache_key = f"{round(loc.lat, 2)}_{round(loc.lon, 2)}_{int(radius_m)}".replace(".", "p").replace("-", "m")
+    cached = storage.load("halal", cache_key)
+    if cached:
+        return cached
+    query = (
+        "[out:json][timeout:20];"
+        f'nwr["diet:halal"~"^(yes|only)$"]["amenity"~"^(restaurant|cafe|fast_food)$"]'
+        f"(around:{int(radius_m)},{loc.lat},{loc.lon});out center {int(limit)};"
+    )
+    try:
+        response = requests.post(
+            OVERPASS_URL,
+            data={"data": query},
+            headers={"User-Agent": USER_AGENT},
+            timeout=30,  # public Overpass servers are often slow
+        )
+        response.raise_for_status()
+        elements = response.json().get("elements", [])
+    except (requests.RequestException, ValueError) as exc:
+        raise LookupError_(f"Halal lookup failed: {exc}") from exc
+    places = []
+    for e in elements:
+        tags = e.get("tags") or {}
+        name = tags.get("name:en") or tags.get("name")
+        if name:
+            places.append({"name": name, "kind": tags.get("amenity", ""), "cuisine": tags.get("cuisine", "")})
+    result = {
+        "place": loc.display_name,
+        "halal_places": places[:limit],
+        "source": "OpenStreetMap diet:halal tags (overpass-api.de)",
+    }
+    storage.save("halal", cache_key, result, 30 * 24 * 3600)
+    return result
 
 
 def transfer_options(origin: str, destination: str) -> dict:

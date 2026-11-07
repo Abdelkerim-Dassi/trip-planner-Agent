@@ -7,6 +7,9 @@ ReelTrip (formerly Voyagent) is a multi-agent AI travel planner built on [CrewAI
 What makes it different:
 
 - **TikTok to trip plan.** ReelTrip reads what travellers share on TikTok about your destination, or the TikTok posts you saved (video and photo links, short share links, or just a pasted caption), pulls out the places they mention, keeps only the ones OpenStreetMap confirms exist, and puts them on a map. You keep the ones you like and the crew builds them into your plan, with a travel agent's reality check (distance, season, crowds).
+- **Opening days checked.** After a plan is written, ReelTrip lists the attractions it schedules, looks up each one's weekly closing days (OpenStreetMap's `opening_hours`, or published hours found by search), and moves anything booked on a day it's closed. The plan page shows what was checked: on the map, opening days checked, moved, or not verified.
+- **Made to be shared.** Every plan has a link preview card, a calendar export (.ics), and a **Post this trip** page: a ready-to-post carousel (cover, one slide per day, a map of the stops) and a caption with hashtags and a short voice-over script.
+- **Halal and prayer aware**, on request: prayer times for the trip, halal-tagged places from OpenStreetMap, and Friday midday prayer kept free.
 - **Works inside Claude and ChatGPT.** ReelTrip is also an [MCP](https://modelcontextprotocol.io) server with grounded tools: trending TikTok spots, place verification, typical weather, prayer times and getting-there options.
 - **Free to run.** Groq's free LLM tier (or OpenAI), Serper's free search tier, and free open data (OpenStreetMap, Open-Meteo, AlAdhan). Hosts free on Render.
 
@@ -50,6 +53,12 @@ Every agent must ground claims in web search: only real places in the selected c
 │   ├── jobs.py               # Background plan jobs + progress phases (web + MCP)
 │   ├── social.py             # TikTok discovery: captions -> verified, ranked spots
 │   ├── places.py             # OpenStreetMap place verification and distances
+│   ├── hours.py              # Opening-hours check: finds and fixes closed-day visits
+│   ├── plan_text.py          # Reads a plan's day sections and items
+│   ├── share_images.py       # Link preview card and post carousel (Pillow + OSM tiles)
+│   ├── content.py            # Content Writer: caption, hashtags, voice-over script
+│   ├── exports.py            # .ics calendar export
+│   ├── storage.py            # Plans and checks in Upstash Redis (free) or local files
 │   ├── travel_info.py        # Typical weather, prayer times, transfer options
 │   ├── serper.py             # Shared Serper search client (cached)
 │   ├── mcp_server.py         # ReelTrip MCP server (stdio or HTTP)
@@ -169,10 +178,11 @@ Render's free plan runs the `Dockerfile` with no credit card. Without a card on 
 1. Sign up at [render.com](https://render.com) (signing in with GitHub is easiest).
 2. In the dashboard click **New → Web Service**, choose **Public Git Repository** and enter this repo's GitHub URL (or connect your GitHub account and pick the repo).
 3. Render detects the `Dockerfile`. Pick a region close to your users, set **Instance Type** to **Free**, and leave the start command empty.
-4. Under **Environment Variables**, add `SERPER_API_KEY` and either `GROQ_API_KEY` (plus `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Optionally add `VOYAGENT_SUPPORT_URL` with your Ko-fi or GitHub Sponsors page to show a "Support ReelTrip" link.
-5. Click **Deploy Web Service**. The first build takes several minutes. The app is then live at `https://<service-name>.onrender.com`, and the MCP endpoint at `https://<service-name>.onrender.com/mcp`.
+4. Under **Environment Variables**, add `SERPER_API_KEY` and either `GROQ_API_KEY` (plus `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Add `GEMINI_API_KEY` too: free Gemini then takes over when Groq is busy and runs the small side jobs (opening-hours check, captions). Optionally add `VOYAGENT_SUPPORT_URL` with your Ko-fi or GitHub Sponsors page to show a "Support ReelTrip" link.
+5. **Keep share links working:** create a free Redis database at [upstash.com](https://upstash.com) (no card), open its **REST API** section, and add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to Render. `/healthz` then shows `"plans_persist": true`.
+6. Click **Deploy Web Service**. The first build takes several minutes. The app is then live at `https://<service-name>.onrender.com`, and the MCP endpoint at `https://<service-name>.onrender.com/mcp`.
 
-Free-plan limits: the service sleeps after 15 minutes without traffic and takes about a minute to wake; its disk is wiped on every restart or redeploy, so shared plan links don't last; and it has 512 MB of memory, which is tight for a full crew run. The same `Dockerfile` also runs on any other container host.
+Free-plan limits: the service sleeps after 15 minutes without traffic and takes about a minute to wake; its disk is wiped on every restart or redeploy, so without Upstash (step 5) shared plan links break; and it has 512 MB of memory, which is tight for a full crew run. The same `Dockerfile` also runs on any other container host.
 
 ## Example output
 
@@ -201,11 +211,14 @@ The provider and model are configured in one place — `src/voyagent/config.py` 
 | `CREW_MAX_ATTEMPTS` | retries of the whole crew on Groq's transient tool-call error | `3` |
 | `VOYAGENT_MAX_ACTIVE_PLANS` | crew runs allowed at once in the web app (others get "busy, try again") | `2` |
 | `VOYAGENT_SUPPORT_URL` | donation page shown after a plan and in the footer (hidden if unset) | unset |
-| `VOYAGENT_DATA_DIR` | where finished plans are saved for share links | `data` |
+| `VOYAGENT_HELPER_MODEL` | LiteLLM model id for small side jobs (finding scheduled places, reading opening hours, captions) | the fallback model, else the discovery model |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | free Upstash Redis that keeps plans, checked hours and captions across restarts | unset (local files only) |
+| `VOYAGENT_DATA_DIR` | local copy of plans and checked hours | `data` |
+| `VOYAGENT_PUBLIC_URL` | site address used in link previews and calendar files (Render's `RENDER_EXTERNAL_URL` is used automatically) | the request's address |
 | `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (Render's `RENDER_EXTERNAL_HOSTNAME` is added automatically) | unset |
 | `VOYAGENT_LANGUAGE` | language for place names from OpenStreetMap | `en` |
 
-See [docs/configuration.md](docs/configuration.md) for adding tools and tuning behavior, and [docs/](docs/README.md) for the full documentation set.
+See [docs/launch/](docs/launch/README.md) for the social media launch kit, [docs/configuration.md](docs/configuration.md) for adding tools and tuning behavior, and [docs/](docs/README.md) for the full documentation set.
 
 > **Note on Groq's free tier:** it caps tokens per minute (≈12k) and per day (≈100k). ReelTrip paces and retries calls to stay within the per-minute limit, but a full plan is token-heavy, so the free tier allows only a few runs per day. For faster, higher-volume use, switch `VOYAGENT_MODEL` to a lighter model or upgrade to Groq's Dev tier (and set `GROQ_STEP_DELAY_SECONDS=0`).
 

@@ -174,7 +174,7 @@
     $("phase-label").textContent = `${job.phase}…`;
     $("ticker").textContent = TICKERS[tick++ % TICKERS.length];
 
-    if (job.status === "done") return showResult(job.result);
+    if (job.status === "done") return showResult(job.result, job.checks);
     if (job.status === "error") {
       show($("progress"), false);
       return fail(`Something went wrong while planning your trip: ${job.error}`);
@@ -182,10 +182,13 @@
     setTimeout(poll, 2500);
   }
 
-  function showResult(markdown) {
+  function showResult(markdown, checks) {
     planText = markdown;
     show($("progress"), false);
     $("plan").innerHTML = DOMPurify.sanitize(marked.parse(markdown));
+    window.renderChecks(checks, $("checks"));
+    $("post").href = `/p/${planId}/post`;
+    $("ics").href = `/p/${planId}/plan.ics`;
     $("plan").querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
     show($("result"));
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -205,6 +208,7 @@
       start: f.get("start"),
       end: f.get("end"),
       interests: f.get("interests").trim(),
+      halal: f.get("halal") === "on",
     };
     if (request.end < request.start) return fail("The trip must end after it starts.");
     // One entry per line: links are looked up, any other text is read as a
@@ -266,7 +270,7 @@
   $("download").addEventListener("click", () => {
     const blob = new Blob([planText], { type: "text/markdown" });
     const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(blob), download: "voyagent-trip-plan.md",
+      href: URL.createObjectURL(blob), download: "reeltrip-plan.md",
     });
     a.click();
     URL.revokeObjectURL(a.href);

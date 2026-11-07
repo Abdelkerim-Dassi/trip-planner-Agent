@@ -71,3 +71,57 @@ def complete(**request):
                     raise
                 time.sleep(wait)
     raise RuntimeError("unreachable")  # the last model either returns or raises
+
+
+def complete_json(prompt: str, model: str | None = None, max_tokens: int = 3000) -> dict:
+    """Ask for a JSON object and parse it; ``{}`` when the reply has none.
+
+    Uses JSON mode where the provider accepts it. Groq rejects a reply that
+    fails its strict JSON check instead of returning it, so on that error we
+    ask again without JSON mode and pull the object out of the text ourselves.
+    """
+    import json
+
+    import litellm
+
+    def ask(model_id: str) -> dict:
+        request = {
+            "model": model_id,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0,
+            "max_tokens": max_tokens,
+            "num_retries": 2,
+        }
+        try:
+            response = complete(**request, response_format={"type": "json_object"})
+        except litellm.BadRequestError:
+            response = complete(**request)
+        content = response.choices[0].message.content or ""
+        match = re.search(r"\{.*\}", content, re.S)
+        try:
+            data = json.loads(match.group(0)) if match else {}
+        except ValueError:
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    # Thinking models (Gemini Flash) sometimes spend the whole token budget
+    # thinking and return nothing, so an empty answer gets one more try, then
+    # the main model; so does a helper that is down or out of quota.
+    first = model or config.helper_model()
+    attempts = [first, first]
+    if config.litellm_model() != first:
+        attempts.append(config.litellm_model())
+    error: Exception | None = None
+    answered = False
+    for model_id in attempts:
+        try:
+            data = ask(model_id)
+        except Exception as exc:  # rate limit, outage: try the next model
+            error = exc
+            continue
+        answered = True
+        if data:
+            return data
+    if not answered and error is not None:
+        raise error  # no model could be reached at all
+    return {}

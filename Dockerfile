@@ -10,6 +10,10 @@ ENV PYTHONUNBUFFERED=1 \
     HOST=0.0.0.0 \
     PORT=7860
 
+# DejaVu fonts draw accented place names (Musée, Sidi Bou Saïd) on share images.
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 # Run as an unprivileged user (uid 1000, as Hugging Face Spaces expects).
 RUN useradd -m -u 1000 voyagent
 WORKDIR /app

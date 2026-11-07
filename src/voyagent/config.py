@@ -120,6 +120,18 @@ def fallback_model() -> str:
     return os.environ.get("VOYAGENT_FALLBACK_MODEL", _DEFAULT_FALLBACK)
 
 
+def helper_model() -> str:
+    """LiteLLM model id for short side jobs: finding the places a plan
+    schedules, reading opening hours out of search snippets, and writing
+    social posts.
+
+    Defaults to the fallback model (free Gemini when its key is set), so these
+    calls don't use up the main model's per-minute budget, then to the
+    discovery model. Override with VOYAGENT_HELPER_MODEL.
+    """
+    return os.environ.get("VOYAGENT_HELPER_MODEL") or fallback_model() or discovery_model()
+
+
 def build_llm():
     """Build the shared chat model for the agents.
 
