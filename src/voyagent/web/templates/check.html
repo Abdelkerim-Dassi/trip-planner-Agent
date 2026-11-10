@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% set s = report.summary %}
+{% set found = s.confirmed + s.far %}
+{% set verdict = (s.problems ~ " problem" ~ ("" if s.problems == 1 else "s") ~ " found") if s.problems
+   else ((s.warnings ~ " thing" ~ ("" if s.warnings == 1 else "s") ~ " to double-check") if s.warnings else "No problems found") %}
+{% block title %}Itinerary check: {{ report.destination or "trip plan" }} · {{ verdict }} · ReelTrip{% endblock %}
+{% block description %}{{ found }} of {{ s.places }} places found on the map{% if s.hours_checked %}, opening days checked for {{ s.hours_checked }} sights{% endif %}. Checked by ReelTrip on {{ checked_on }}.{% endblock %}
+{% block social_meta %}
+  <meta property="og:url" content="{{ public_url }}/c/{{ check.id }}">
+  <meta property="og:image" content="{{ public_url }}/c/{{ check.id }}/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ public_url }}/c/{{ check.id }}/og.png">
+  {% if not is_example %}<meta name="robots" content="noindex">{% endif %}
+{% endblock %}
+{% block content %}
+<header class="hero hero-small">
+  <span class="badge">✅ {{ "Example itinerary check" if is_example else "Itinerary check" }}</span>
+  <h1>{{ report.destination or "Trip plan" }}</h1>
+  <p>Checked on {{ checked_on }}{% if report.start_date %} · trip starts {{ report.start_date }}{% endif %}
+     {% if is_example %}<br>A five-day plan written by an AI assistant, checked as it came.{% endif %}</p>
+</header>
+<article class="card report" id="report"></article>
+<div class="actions">
+  <a class="button primary" href="/">✅ Check your own itinerary</a>
+  {% if report.fix_prompt %}<button type="button" id="copy-fix">📋 Copy the fix list for ChatGPT</button>{% endif %}
+  <button type="button" id="copy-link">🔗 Copy link</button>
+  <button type="button" onclick="window.print()">🖨️ Print / PDF</button>
+</div>
+<script type="application/json" id="report-data">{{ report | tojson }}</script>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/static/report.js?v=3"></script>
+<script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const report = JSON.parse(document.getElementById("report-data").textContent);
+    window.renderReport(report, document.getElementById("report"));
+    const fix = document.getElementById("copy-fix");
+    if (fix) fix.addEventListener("click", () => window.copyText(report.fix_prompt, fix));
+    const link = document.getElementById("copy-link");
+    link.addEventListener("click", () => window.copyText(location.href, link, "✓ Link copied"));
+  });
+</script>
+{% endblock %}

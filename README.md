@@ -1,43 +1,56 @@
 # ReelTrip
 
-**From saved reels to real trips.** Live at **[reeltrip.onrender.com](https://reeltrip.onrender.com)**.
+**The reality check for trip plans.** Live at **[reeltrip.onrender.com](https://reeltrip.onrender.com)**.
 
-ReelTrip (formerly Voyagent) is a multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). Give it an origin, candidate destinations, dates and interests, and seven specialized agents pick the best city, research it, and return a verified day-by-day itinerary with logistics, budget and packing notes.
+AI planners write confident itineraries with museums scheduled on the day they're closed, restaurants that are in another city, and places that don't exist. ReelTrip checks a plan against the real world and says exactly what it found.
 
-What makes it different:
+Paste any itinerary (from ChatGPT, Gemini, a blog, or your own notes) and ReelTrip:
 
-- **TikTok to trip plan.** ReelTrip reads what travellers share on TikTok about your destination, or the TikTok posts you saved (video and photo links, short share links, or just a pasted caption), pulls out the places they mention, keeps only the ones OpenStreetMap confirms exist, and puts them on a map. You keep the ones you like and the crew builds them into your plan, with a travel agent's reality check (distance, season, crowds).
-- **Opening days checked.** After a plan is written, ReelTrip lists the attractions it schedules, looks up each one's weekly closing days (OpenStreetMap's `opening_hours`, or published hours found by search), and moves anything booked on a day it's closed. The plan page shows what was checked: on the map, opening days checked, moved, or not verified.
-- **Made to be shared.** Every plan has a link preview card, a calendar export (.ics), and a **Post this trip** page: a ready-to-post carousel (cover, one slide per day, a map of the stops) and a caption with hashtags and a short voice-over script.
-- **Halal and prayer aware**, on request: prayer times for the trip, halal-tagged places from OpenStreetMap, and Friday midday prayer kept free.
-- **Works inside Claude and ChatGPT.** ReelTrip is also an [MCP](https://modelcontextprotocol.io) server with grounded tools: trending TikTok spots, place verification, typical weather, prayer times and getting-there options.
-- **Free to run.** Groq's free LLM tier (or OpenAI), Serper's free search tier, and free open data (OpenStreetMap, Open-Meteo, AlAdhan). Hosts free on Render.
+- **Looks up each named place on OpenStreetMap**, near the town that day is set in. A place with no trace on the map or the web is flagged as possibly invented.
+- **Catches the wrong city.** A lunch "in Kairouan" that is really 135 km away, in Sidi Bou Said, is a problem; a sight that far is a long detour.
+- **Matches sights to their weekly closing day** (OpenStreetMap's `opening_hours`, or published hours found by search, with the source) and flags a visit on a closed weekday.
+- **Measures the day.** Days that cover too much distance or list too many sights are called out.
+- **Flags Friday prayer and Ramadan** when asked.
+- Gives a **shareable report page** with a map, a link preview, and a **fix list to paste back into the assistant** that wrote the plan.
 
-## How it works
+It reports in counts ("17 of 20 places found on the map, opening days checked for 6 of 11 sights"), never "everything verified". See a real report: [reeltrip.onrender.com/c/example](https://reeltrip.onrender.com/c/example).
 
-Seven CrewAI agents run in sequence. Each step's output is passed forward as task **context**, so every agent works from the verified result of the one before:
+ReelTrip also **plans**: it reads what travellers share on TikTok about a destination (or the TikTok links and captions you saved), keeps the places that are on the map, writes a day-by-day plan in English, French or Arabic, and then runs that plan through the same check. Halal food and prayer times on request.
 
-| # | Agent | What it does |
+And it works **inside Claude and ChatGPT** as an [MCP](https://modelcontextprotocol.io) server, so an assistant can check the itinerary it just wrote.
+
+Free to run: Groq's and Gemini's free LLM tiers, Serper's free search tier (optionally Tavily's), and open data (OpenStreetMap, Open-Meteo, AlAdhan). Hosts free on Render.
+
+## How the check works
+
+`src/voyagent/review.py`. One small model call lists the places the text names, day by day. Everything after that is looked up, not generated:
+
+| Step | Source | Finding |
 |---|---|---|
-| 1 | **City Selection Expert** | Picks the best city **from your candidates** for the dates and interests (weather, events, prices). |
-| 2 | **Local Expert** | Builds a guide: attractions, neighbourhoods, customs, food, events. |
-| 3 | **Experience Curator** | Surfaces signature experiences and hidden gems, and weighs the TikTok spots you kept. |
-| 4 | **Travel Concierge** | Drafts the day-by-day plan for your exact dates, with weather, packing list and budget. |
-| 5 | **Logistics Planner** | Adds getting around, transfers and booking notes. |
-| 6 | **Itinerary Critic** | Paces the days like a professional tour planner: one area per half-day, buffer time, weekly closing days, Ramadan hours, and an indoor Plan B. Weekdays and Ramadan dates are computed in code, not guessed. |
-| 7 | **Final Editor** | Polishes the verified plan into one document (no new facts allowed). |
+| Is the place on the map near that day's town? | OpenStreetMap Nominatim, preferring matches in and around the town | found, far, or not on the map |
+| If not on the map: does the web know it? | one exact-name web search | "online only" (probably real) or "no trace" (possibly invented) |
+| Is a sight open on the scheduled weekday? | OSM `opening_hours`, else published hours read from search snippets (only when a snippet states them), cached for a month | closed-day conflict, with the source |
+| Does the day fit? | straight-line distance between the day's stops; number of sights | long day, packed day |
+| Friday and Ramadan | computed calendar (AlAdhan's Hijri calendar) | notes |
 
-Every agent must ground claims in web search: only real places in the selected country, links only when copied from a result, °C, one currency. The model is provider-switchable in `src/voyagent/config.py`: OpenAI `gpt-4o-mini` by default, or Groq's free tier with `VOYAGENT_PROVIDER=groq`.
+A place of the same name but the wrong kind (a "Dar Zarrouk" that is a wine shop when the plan means a restaurant) is not accepted as a match. The pasted text is not stored; only the report is.
 
-**TikTok discovery** (`src/voyagent/social.py`) never scrapes TikTok or downloads videos. It searches Google's index of TikTok videos through Serper, has the LLM extract the places named in the captions, verifies each with OpenStreetMap's Nominatim (in the destination's country only), and ranks them by how many videos mention them. Every spot links back to its videos.
+## How planning works
+
+In production ReelTrip runs in **quick mode** (`src/voyagent/quick_plan.py`): code gathers the facts first (the traveller's TikTok spots, the computed trip calendar and Ramadan dates, typical weather, a few web searches, prayer times and halal-tagged places when asked) and one model call writes the plan under grounding and pacing rules. The plan is then checked by `review.py`; a sight scheduled on its closing day is moved by one editing call, and the report is shown under the plan.
+
+**TikTok discovery** (`src/voyagent/social.py`) never scrapes TikTok or downloads videos. It searches Google's index of TikTok videos through Serper, has the model extract the places named in the captions, keeps the ones found on OpenStreetMap in the destination's country, and ranks them by how many videos mention them. Spots more than a day trip away are shown but left unticked.
+
+A seven-agent [CrewAI](https://www.crewai.com/) crew (`crew.py`, `agents.py`, `tasks.py`) is still included for providers with larger limits (`VOYAGENT_PLAN_MODE=crew`); it is too token-hungry for the free tiers.
 
 ## Tech stack
 
 - **Python 3.10/3.11**, `pip` or Poetry
-- **CrewAI** (`crewai[litellm]`) for the agents; LiteLLM for Groq
 - **FastAPI + Uvicorn** for the web app and JSON API; plain HTML/CSS/JS front end (no build step) with **Leaflet** maps on OpenStreetMap tiles
+- **LiteLLM** (via `crewai[litellm]`) for Groq, Gemini and OpenAI
 - **MCP Python SDK** (`mcp` 2.x) for the Claude / ChatGPT integration
-- **Serper.dev** for web search; **OpenStreetMap Nominatim**, **Open-Meteo** and **AlAdhan** for free grounded data
+- **Serper.dev** (and optionally **Tavily**) for web search; **OpenStreetMap Nominatim / Overpass**, **Open-Meteo** and **AlAdhan** for free grounded data
+- **Upstash Redis** (free) for reports, plans, caches and daily limits
 - **Docker** for hosting (Render's free plan, or any container host)
 
 ## Repository structure
@@ -45,111 +58,82 @@ Every agent must ground claims in web search: only real places in the selected c
 ```
 .
 ├── src/voyagent/
-│   ├── __main__.py           # CLI entry point (python -m voyagent)
-│   ├── crew.py               # TripCrew: orchestration, context wiring, Groq throttle/retry
-│   ├── agents.py             # The 7 agent definitions
-│   ├── tasks.py              # Task prompts with grounding rules
-│   ├── config.py             # Env loading, provider/model selection, key validation
-│   ├── jobs.py               # Background plan jobs + progress phases (web + MCP)
-│   ├── social.py             # TikTok discovery: captions -> verified, ranked spots
-│   ├── places.py             # OpenStreetMap place verification and distances
-│   ├── hours.py              # Opening-hours check: finds and fixes closed-day visits
-│   ├── plan_text.py          # Reads a plan's day sections and items
-│   ├── share_images.py       # Link preview card and post carousel (Pillow + OSM tiles)
-│   ├── content.py            # Content Writer: caption, hashtags, voice-over script
+│   ├── review.py             # The itinerary check: map, wrong city, closing days, day load
+│   ├── hours.py              # Weekly closing days from OSM or published hours
+│   ├── places.py             # OpenStreetMap place lookup (city-aware, cached)
+│   ├── quick_plan.py         # One grounded call that writes a plan (free tiers)
+│   ├── social.py             # TikTok discovery: captions -> places on the map
+│   ├── jobs.py               # Background plan and check jobs with progress
+│   ├── limits.py             # Daily per-visitor limits and global budgets
+│   ├── serper.py             # Web search: saved cache, daily budget, Tavily option
+│   ├── storage.py            # Upstash Redis (free) or local files
+│   ├── travel_info.py        # Typical weather, prayer times, Ramadan, transfers
+│   ├── share_images.py       # Link preview cards and the post carousel (Pillow)
+│   ├── content.py            # Caption, hashtags and voice-over for a plan
 │   ├── exports.py            # .ics calendar export
-│   ├── storage.py            # Plans and checks in Upstash Redis (free) or local files
-│   ├── travel_info.py        # Typical weather, prayer times, transfer options
-│   ├── serper.py             # Shared Serper search client (cached)
+│   ├── plan_text.py          # Reads a plan's day sections and items
+│   ├── llm.py                # Model calls that ride out free-tier limits
+│   ├── config.py             # Env loading, provider/model selection
 │   ├── mcp_server.py         # ReelTrip MCP server (stdio or HTTP)
-│   ├── tools/                # CrewAI tools: web search, calculator
-│   └── web/                  # FastAPI app, page templates, static JS/CSS
+│   ├── crew.py, agents.py, tasks.py, tools/   # The optional seven-agent crew
+│   └── web/                  # FastAPI app, page templates, static JS/CSS, example report
+├── tests/                    # Offline tests (pytest)
+├── scripts/launch_check.py   # End-to-end live check of a running instance
 ├── Dockerfile                # Container for Render / any host
-├── docs/                     # Project documentation
-├── .env.example              # Template for required API keys
+├── docs/                     # Project documentation and the launch kit
+├── .env.example              # Template for API keys and limits
 ├── requirements.txt          # pip dependencies (used by the Dockerfile)
 └── pyproject.toml            # Poetry project + dependencies
 ```
 
 ## Getting started
 
-### 1. Clone
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/Abdelkerim-Dassi/trip-planner-Agent.git
 cd trip-planner-Agent
-```
-
-### 2. Install dependencies (Poetry recommended)
-
-```bash
-poetry install
-poetry shell
-```
-
-Or with pip:
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure API keys
+### 2. Configure API keys
 
-Copy `.env.example` to `.env` and fill it in. `SERPER_API_KEY` is always required; the LLM key depends on the provider you choose.
+Copy `.env.example` to `.env` and fill it in. `SERPER_API_KEY` is always required; the LLM key depends on the provider.
 
-```bash
-cp .env.example .env
-```
-
-**Free, with Groq (recommended for trying it out):**
+**Free setup (what the live site runs):**
 
 ```env
 VOYAGENT_PROVIDER=groq
 GROQ_API_KEY=gsk_...          # free at https://console.groq.com/keys
+GEMINI_API_KEY=...            # free at https://aistudio.google.com (fallback when Groq is busy)
 SERPER_API_KEY=...            # free tier at https://serper.dev
+TAVILY_API_KEY=...            # optional, free 1,000 searches a month at https://tavily.com
 ```
 
-**With OpenAI (default provider):**
+With `TAVILY_API_KEY` set, searches that don't need Google's TikTok index go to Tavily first, which saves Serper credits. The Tavily path is written against Tavily's documented API and covered by offline tests, but has not been run against the live service yet.
 
-```env
-OPENAI_API_KEY=sk-...
-SERPER_API_KEY=...
-```
-
-The app validates these at startup and fails fast with a clear message if a required key is missing.
-
-### 4. Run the CLI
-
-```bash
-python -m voyagent
-# or, after `poetry install`:
-voyagent
-```
-
-You'll be prompted for four inputs:
-
-```
-Enter origin: Tunis
-Enter candidate destinations (comma-separated): Lisbon, Porto, Barcelona
-Enter travel time range: 15 June - 22 June
-Enter interests: food, architecture, beach
-```
-
-The crew runs and the final trip plan prints to the terminal.
-
-### 5. Run the web app
+### 3. Run the web app
 
 ```bash
 python -m voyagent.web            # http://127.0.0.1:8000
 ```
 
-Fill in the trip form. With **Inspired by TikTok** on (or links pasted), ReelTrip first shows the spots travellers love on a map, in about 30 seconds per destination. Untick what you'd skip, click **Build my itinerary**, and follow the crew's progress phase by phase. The finished plan has a **share link** (`/p/<id>`, a server-rendered page that previews well on social media), Markdown download and print-to-PDF.
+- **Check an itinerary:** paste a plan, add the first day of the trip (needed to match closing days to weekdays), and read the report. Finished reports live at `/c/<id>`.
+- **Plan from TikTok:** fill in where and when. With **Inspired by TikTok** on (or links pasted) ReelTrip first shows the spots travellers love on a map; untick what you'd skip and build the plan. Finished plans live at `/p/<id>`, with a calendar export and a **Post this trip** page.
 
 The JSON API is documented at `/api/docs`.
 
-### 6. Use ReelTrip from Claude or ChatGPT (MCP)
+### 4. Run the tests
 
-ReelTrip's MCP tools: `trending_spots`, `spots_from_tiktok_links`, `verify_place`, `typical_weather`, `prayer_times`, `transfer_options`, and `plan_trip` (the full crew; slow).
+```bash
+python -m pytest tests -q
+```
+
+### 5. Use ReelTrip from Claude or ChatGPT (MCP)
+
+Tools: `check_itinerary`, `trending_spots`, `spots_from_tiktok_links`, `verify_place`, `typical_weather`, `prayer_times`, `transfer_options`. (`plan_trip`, the full planner, is registered only when `VOYAGENT_MCP_PLAN_TRIP=1`, for private servers.)
+
+**Remote (Claude custom connector, ChatGPT apps):** the web app serves the MCP server at `https://<your-host>/mcp` (the official one is `https://reeltrip.onrender.com/mcp`). Add that URL as a custom connector.
 
 **Claude Desktop (local):** add this to `claude_desktop_config.json`, then restart Claude:
 
@@ -161,66 +145,61 @@ ReelTrip's MCP tools: `trending_spots`, `spots_from_tiktok_links`, `verify_place
       "args": ["-m", "voyagent.mcp_server"],
       "env": {
         "PYTHONPATH": "C:/path/to/trip-planner-Agent/src",
-        "SERPER_API_KEY": "...",
-        "OPENAI_API_KEY": "sk-..."
+        "VOYAGENT_PROVIDER": "groq",
+        "GROQ_API_KEY": "gsk_...",
+        "SERPER_API_KEY": "..."
       }
     }
   }
 }
 ```
 
-**Remote (Claude custom connector, ChatGPT apps):** the web app serves the same MCP server at `https://<your-host>/mcp` (the official one is `https://reeltrip.onrender.com/mcp`). Deploy it (below), then add that URL as a custom connector in Claude, or as a connector in ChatGPT's developer mode. To run only the MCP server over HTTP: `python -m voyagent.mcp_server --http --port 8000`.
-
 ## Deploying for free (Render)
 
 Render's free plan runs the `Dockerfile` with no credit card. Without a card on file, Render pauses the service if you exceed the free limits instead of billing you.
 
-1. Sign up at [render.com](https://render.com) (signing in with GitHub is easiest).
-2. In the dashboard click **New → Web Service**, choose **Public Git Repository** and enter this repo's GitHub URL (or connect your GitHub account and pick the repo).
+1. Sign up at [render.com](https://render.com).
+2. **New → Web Service → Public Git Repository**, and enter this repo's GitHub URL.
 3. Render detects the `Dockerfile`. Pick a region close to your users, set **Instance Type** to **Free**, and leave the start command empty.
-4. Under **Environment Variables**, add `SERPER_API_KEY` and either `GROQ_API_KEY` (plus `VOYAGENT_PROVIDER=groq`) or `OPENAI_API_KEY`. Add `GEMINI_API_KEY` too: free Gemini then takes over when Groq is busy and runs the small side jobs (opening-hours check, captions). Optionally add `VOYAGENT_SUPPORT_URL` with your Ko-fi or GitHub Sponsors page to show a "Support ReelTrip" link.
-5. **Keep share links working:** create a free Redis database at [upstash.com](https://upstash.com) (no card), open its **REST API** section, and add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to Render. `/healthz` then shows `"plans_persist": true`.
-6. Click **Deploy Web Service**. The first build takes several minutes. The app is then live at `https://<service-name>.onrender.com`, and the MCP endpoint at `https://<service-name>.onrender.com/mcp`.
+4. Under **Environment Variables**, add `VOYAGENT_PROVIDER=groq`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `SERPER_API_KEY`, and optionally `TAVILY_API_KEY` and `VOYAGENT_SUPPORT_URL`.
+5. **Keep share links working:** create a free Redis database at [upstash.com](https://upstash.com) (no card), open its **REST API** section, and add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. `/healthz` then shows `"plans_persist": true`. The same database keeps the search cache and the daily limits across restarts.
+6. **Deploy.** When the repo is connected by public URL, Render does not deploy on push: after pushing, use **Manual Deploy → Deploy latest commit**.
 
-Free-plan limits: the service sleeps after 15 minutes without traffic and takes about a minute to wake; its disk is wiped on every restart or redeploy, so without Upstash (step 5) shared plan links break; and it has 512 MB of memory, which is tight for a full crew run. The same `Dockerfile` also runs on any other container host.
-
-## Example output
-
-A typical run produces:
-
-- A picked city (from the candidates) with justification: weather for the dates, prices, fit to interests
-- A local guide: top attractions, neighborhoods, local customs, seasonal events
-- A day-by-day itinerary **covering your exact travel dates**: activities, real hotels and restaurants
-- A budget table in one consistent currency
-- A packing list tailored to the weather
+Free-plan limits: the service sleeps after 15 minutes without traffic and takes about a minute to wake (a free uptime monitor pinging `/healthz` every 10 minutes keeps it awake and fits the 750 free hours); its disk is wiped on every restart, so without Upstash shared links break; and it has 512 MB of memory.
 
 ## Configuration
 
-The provider and model are configured in one place — `src/voyagent/config.py` — and overridable via environment variables (no code change):
+Set in `.env` or the host's environment.
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `VOYAGENT_PROVIDER` | `openai`, `groq` or `gemini` (Groq and Gemini have free tiers, no card) | `openai` |
-| `VOYAGENT_FALLBACK_MODEL` | free model used when the primary is rate-limited or overloaded (`""` disables) | `gemini/gemini-3.5-flash` when `GEMINI_API_KEY` is set and the provider isn't Gemini |
-| `VOYAGENT_PLAN_MODE` | `crew` (7 agents) or `quick` (code gathers facts, one grounded call; fits Groq's 8k-tokens-a-minute free tier) | `quick` on groq, else `crew` |
-| `VOYAGENT_DISCOVERY_MODEL` | LiteLLM model id for the TikTok step, e.g. `groq/openai/gpt-oss-120b`, so it doesn't share the crew's rate limit | the agents' model |
+| `VOYAGENT_PROVIDER` | `openai`, `groq` or `gemini` | `openai` |
 | `VOYAGENT_MODEL` | model name | `gpt-4o-mini` (openai) / `openai/gpt-oss-120b` (groq) |
-| `VOYAGENT_TEMPERATURE` | sampling temperature | `0.2` |
-| `VOYAGENT_STEP_DELAY_SECONDS` | pause between agent steps to stay under free-tier per-minute caps (`0` to disable; `GROQ_STEP_DELAY_SECONDS` still works) | `10` (groq), `6` (gemini), `0` (openai) |
-| `VOYAGENT_NUM_RETRIES` | retries when a free tier returns a rate-limit 429 (`GROQ_NUM_RETRIES` still works) | `8` |
-| `CREW_MAX_ATTEMPTS` | retries of the whole crew on Groq's transient tool-call error | `3` |
-| `VOYAGENT_MAX_ACTIVE_PLANS` | crew runs allowed at once in the web app (others get "busy, try again") | `2` |
-| `VOYAGENT_SUPPORT_URL` | donation page shown after a plan and in the footer (hidden if unset) | unset |
-| `VOYAGENT_HELPER_MODEL` | LiteLLM model id for small side jobs (finding scheduled places, reading opening hours, captions) | the fallback model, else the discovery model |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | free Upstash Redis that keeps plans, checked hours and captions across restarts | unset (local files only) |
-| `VOYAGENT_DATA_DIR` | local copy of plans and checked hours | `data` |
-| `VOYAGENT_PUBLIC_URL` | site address used in link previews and calendar files (Render's `RENDER_EXTERNAL_URL` is used automatically) | the request's address |
-| `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (Render's `RENDER_EXTERNAL_HOSTNAME` is added automatically) | unset |
+| `VOYAGENT_PLAN_MODE` | `quick` (one grounded call) or `crew` (7 agents) | `quick` on groq, else `crew` |
+| `VOYAGENT_FALLBACK_MODEL` | free model used when the primary is rate-limited (`""` disables) | Gemini Flash when `GEMINI_API_KEY` is set |
+| `VOYAGENT_DISCOVERY_MODEL` | model for the fast steps (reading an itinerary, TikTok captions, opening hours during a check) | the main model |
+| `VOYAGENT_HELPER_MODEL` | model for small background jobs (captions) | the fallback model, else the discovery model |
+| `TAVILY_API_KEY` | second search provider for non-TikTok searches | unset |
+| `VOYAGENT_DAILY_CHECKS_PER_IP` | itinerary checks per visitor per day | `12` |
+| `VOYAGENT_DAILY_PLANS_PER_IP` | plans per visitor per day | `6` |
+| `VOYAGENT_DAILY_DISCOVERS_PER_IP` | TikTok discoveries per visitor per day | `12` |
+| `VOYAGENT_DAILY_SEARCH_BUDGET` | Serper searches per day, everyone together | `200` |
+| `VOYAGENT_DAILY_MCP_BUDGET` | itinerary checks per day through MCP | `300` |
+| `VOYAGENT_MAX_ACTIVE_PLANS` / `VOYAGENT_MAX_ACTIVE_CHECKS` | jobs allowed at once | `2` / `3` |
+| `VOYAGENT_MCP_PLAN_TRIP` | `1` registers the slow `plan_trip` MCP tool | off |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | free Redis for reports, plans, caches and limits | unset (local files only) |
+| `VOYAGENT_PUBLIC_URL` | site address used in link previews and share links | the request's address (Render's is detected) |
+| `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts | unset |
+| `VOYAGENT_SUPPORT_URL` | donation page shown after a plan and in the footer | unset |
+| `VOYAGENT_CONTACT_URL` | where "Report a problem" points | this repo's issues |
 | `VOYAGENT_LANGUAGE` | language for place names from OpenStreetMap | `en` |
+| `VOYAGENT_DATA_DIR` | local copy of reports, plans and caches | `data` |
 
-See [docs/launch/](docs/launch/README.md) for the social media launch kit, [docs/configuration.md](docs/configuration.md) for adding tools and tuning behavior, and [docs/](docs/README.md) for the full documentation set.
+See [docs/launch/](docs/launch/README.md) for the launch kit.
 
-> **Note on Groq's free tier:** it caps tokens per minute (≈12k) and per day (≈100k). ReelTrip paces and retries calls to stay within the per-minute limit, but a full plan is token-heavy, so the free tier allows only a few runs per day. For faster, higher-volume use, switch `VOYAGENT_MODEL` to a lighter model or upgrade to Groq's Dev tier (and set `GROQ_STEP_DELAY_SECONDS=0`).
+## What the check can't do
+
+It looks places up on OpenStreetMap and reads published opening hours. It can miss a real place (especially one mapped under a local name), match the wrong one, or rely on hours that have changed. It can't see strikes, renovations, sold-out tickets or prices. It is a second pair of eyes, not a guarantee.
 
 ## License
 

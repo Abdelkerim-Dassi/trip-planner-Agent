@@ -188,7 +188,12 @@ def _cache_key(name: str, city: str) -> str:
     return hashlib.sha1(f"{name.lower()}|{city.lower()}".encode()).hexdigest()[:24]
 
 
-def _from_snippets(pending: list[PlaceCheck], city: str) -> set[str]:
+def hours_query(name: str, city: str) -> str:
+    """The web search used to find a place's opening hours."""
+    return f"{name} {city} opening hours closed days"
+
+
+def _from_snippets(pending: list[PlaceCheck], city: str, model: str | None = None) -> set[str]:
     """Fill closing days from web-search snippets, one model call for all.
 
     Returns the names the model actually answered for ("known" or "unknown"),
@@ -197,7 +202,7 @@ def _from_snippets(pending: list[PlaceCheck], city: str) -> set[str]:
     blocks, sources = [], {}
     for index, check in enumerate(pending):
         try:
-            results = search(f"{check.name} {city} opening hours closed days")
+            results = search(hours_query(check.name, city))
         except SearchError:
             continue
         lines = []
@@ -223,7 +228,7 @@ def _from_snippets(pending: list[PlaceCheck], city: str) -> set[str]:
         """
     ).strip()
     try:
-        data = complete_json(prompt, max_tokens=4000)
+        data = complete_json(prompt, model=model, max_tokens=4000)
     except Exception as exc:
         log.warning("Hours extraction failed: %s", exc)
         return set()
@@ -249,7 +254,12 @@ def _from_snippets(pending: list[PlaceCheck], city: str) -> set[str]:
     return answered
 
 
-def _lookup(checks: list[PlaceCheck], city: str) -> None:
+def _lookup(checks: list[PlaceCheck], city: str, located: dict | None = None,
+            model: str | None = None) -> None:
+    """Fill each check's closing days. ``located`` maps names to places the
+    caller has already found on the map, so they aren't looked up twice;
+    ``model`` picks the model that reads the search snippets (default: the
+    helper model)."""
     pending, from_cache, answered = [], set(), set()
     for check in checks:
         cached = storage.load("hours", _cache_key(check.name, city))
@@ -258,7 +268,7 @@ def _lookup(checks: list[PlaceCheck], city: str) -> None:
                 setattr(check, key, cached.get(key, getattr(check, key)))
             from_cache.add(check.name)
             continue
-        place = verify_place(check.name, city)
+        place = (located or {}).get(check.name) or verify_place(check.name, city)
         if place is not None:
             check.on_map, check.osm_url = True, place.osm_url
             check.lat, check.lon = place.lat, place.lon
@@ -269,7 +279,7 @@ def _lookup(checks: list[PlaceCheck], city: str) -> None:
         if check.status != "ok":
             pending.append(check)
     if pending:
-        answered = _from_snippets(pending, city)
+        answered = _from_snippets(pending, city, model)
     for check in checks:
         if check.name in from_cache:
             continue

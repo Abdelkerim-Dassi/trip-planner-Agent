@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Privacy · ReelTrip{% endblock %}
+{% block description %}What ReelTrip stores, what it sends to other services, and how to get something removed.{% endblock %}
+{% block content %}
+<header class="hero hero-small">
+  <span class="badge">Privacy</span>
+  <h1>What ReelTrip does with your data</h1>
+  <p>Short version: no accounts, no ads, no tracking cookies.</p>
+</header>
+<article class="card plan">
+  <h2>What we store</h2>
+  <ul>
+    <li><strong>Itinerary checks.</strong> The text you paste is used for the check and then discarded. The report (place names, what was found, the findings) is stored under a random link so you can share it.</li>
+    <li><strong>Trip plans.</strong> The plan and the form answers behind it (destination, dates, interests, and where you travel from if you gave it) are stored under a random link.</li>
+    <li><strong>Usage limits.</strong> To keep the free service available, we count requests per visitor per day. The count is kept against a scrambled (hashed) form of your IP address, not the address itself, and expires after two days.</li>
+    <li><strong>Lookups.</strong> Place lookups, opening hours and search results are cached without any link to who asked.</li>
+  </ul>
+  <p>Anyone who has a report or plan link can open it. The links are random and are not listed anywhere or offered to search engines, but treat a link like the document itself: share it only with people you want to see it. Don't paste names, booking references or other personal details into an itinerary.</p>
+
+  <h2>What is sent to other services</h2>
+  <ul>
+    <li><strong>AI models</strong> (Groq, and Google Gemini on its free tier) receive the itinerary text or trip request to read it or write a plan. Google states that free-tier Gemini requests may be used to improve its products.</li>
+    <li><strong>OpenStreetMap</strong> (Nominatim, Overpass, map tiles) receives place names to look up, and your browser loads map images from it.</li>
+    <li><strong>Web search</strong> (Serper, and Tavily when configured) receives search queries about places, such as a museum's opening hours.</li>
+    <li><strong>Open-Meteo</strong> and <strong>AlAdhan</strong> receive a location and date for weather and prayer times.</li>
+    <li><strong>Hosting and storage</strong>: the site runs on Render and stores reports and plans in Upstash.</li>
+    <li>Your browser loads fonts from Google Fonts and scripts from cdnjs.</li>
+  </ul>
+  <p>None of these services receive your name or email from us, because we never ask for them.</p>
+
+  <h2>Removing something</h2>
+  <p>To have a report or plan deleted, <a href="{{ contact_url }}" target="_blank" rel="noopener">open a request here</a> and include its link.</p>
+
+  <h2>Limits of the check</h2>
+  <p>ReelTrip looks places up on OpenStreetMap and reads published opening hours. It can miss real places, match the wrong one, or rely on hours that have changed. It is a second pair of eyes, not a guarantee: confirm anything your trip depends on.</p>
+</article>
+<div class="actions">
+  <a class="button primary" href="/">← Back to ReelTrip</a>
+</div>
+{% endblock %}

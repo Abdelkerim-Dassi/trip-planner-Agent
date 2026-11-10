@@ -156,10 +156,41 @@ After the original audit, the project was extended and rebranded:
   `max_iter` (15), and a CrewAI guardrail on the critic and editor tasks that rejects anything
   but a full plan with every `Day N` section and makes the agent retry.
 
+### 2026-11-11 — Itinerary check, honest counts, free-tier protection
+
+- **New: itinerary check** (`review.py`). Paste any itinerary; each named place is looked up on
+  OpenStreetMap near the town its day is set in, places missing from the map are searched on the
+  web ("online only" or "no trace"), sights are matched to their weekly closing day, and days that
+  cover too much distance or too many sights are flagged, with optional Friday and Ramadan notes.
+  API `/api/checks`, share page `/c/{id}` with a map and link preview, `/c/example` shipped with
+  the app, and the MCP tool `check_itinerary`. The home page now leads with it.
+- **Plans are checked the same way.** `jobs.PlanJob` runs `review.check_plan` after writing; the
+  report (with a map) replaces the old "What we checked" list, and pages state counts instead of
+  "every place verified". Plans can be written in English, French or Arabic; "where from" and
+  interests are optional; flights are no longer priced.
+- **Bugs fixed.** The opening-days check read only the first two columns of a three-column plan
+  table and so saw almost no attractions. Place matching took the first hit in the country
+  ("Medina" 116 km from Tunis); it now prefers matches in and around the destination city and is
+  cached in storage. Far-away TikTok spots were pre-ticked and forced into the plan. A busy main
+  model handed plans to a fallback that returned them cut off after day one; incomplete plans are
+  now refused. The HTTP client logged Gemini request URLs, which contain the API key.
+- **Free tiers.** Gemini's full Flash model allows about 20 free requests a day; the fallbacks are
+  now Groq's `qwen/qwen3.8-27b` (own rate limit, sub-second) and Gemini Flash-Lite, and a model that
+  says it is out is skipped instead of retried (`llm.py`). Daily per-visitor limits and a daily
+  search budget (`limits.py`), a search cache kept in storage, and an optional second search
+  provider (Tavily, untested against the live API) protect the one-time Serper allowance. The MCP
+  `plan_trip` tool is off unless `VOYAGENT_MCP_PLAN_TRIP=1`.
+- **Site basics.** `/privacy`, `/robots.txt`, `/sitemap.xml`, a home preview image, `HEAD /`,
+  finished jobs pruned from memory, one polling loop per page.
+- **Tests.** 61 offline tests (`tests/`); `scripts/launch_check.py` covers the new surfaces.
+
 ## Remaining suggestions (not yet done)
 
-- Add automated tests (e.g. for the calculator evaluator, `validate_env`, provider selection
-  in `build_llm`, the web API, and the TikTok/place-verification pipeline with mocked HTTP).
+- More automated tests: the web API routes, the TikTok discovery pipeline with mocked HTTP,
+  `validate_env` and provider selection.
+- Slim the hosted image: quick mode still imports its prompt rules from `tasks.py`, which pulls
+  in `crewai`. Moving the rules to a light module would cut memory and start-up time.
+- Run the Tavily search path against the live API once a key exists.
 - Expose the grounded lookups (`travel_info.typical_weather`, `places.verify_place`) to the
   crew's agents as CrewAI tools; today only the MCP server uses them.
 - Reconcile `pyproject.toml` with `requirements.txt` (it still lists the now-unused `unstructured`

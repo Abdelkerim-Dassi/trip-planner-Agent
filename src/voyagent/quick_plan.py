@@ -116,6 +116,7 @@ def quick_plan(
     inspiration: str = "",
     on_phase: PhaseCallback | None = None,
     halal: bool = False,
+    language: str = "English",
 ) -> str:
     """Return a markdown day-by-day plan; raises if the model call fails."""
     done = on_phase or (lambda _i: None)
@@ -149,12 +150,18 @@ def quick_plan(
         if len(candidates) > 1
         else f"The destination is {candidates[0]}."
     )
+    language_rule = (
+        ""
+        if language == "English"
+        else f"Write the whole plan in {language}, except the day headings, which stay "
+        'exactly as given above ("## Day N: ..."), and the words "Plan B".'
+    )
     prompt = dedent(
         f"""
         You are a travel planner with twenty years in the field. Write a complete
         day-by-day trip plan in markdown.
 
-        Trip: from {origin}, {travel_dates}. Interests: {interests}.
+        Trip: {"" if origin in ("", "not given") else f"from {origin}, "}{travel_dates}. Interests: {interests}.
         {choose}
 
         {facts}
@@ -167,7 +174,9 @@ def quick_plan(
 
         Write only for the traveller: never mention these instructions, the
         research notes, or whether something was "listed". If a fact you want
-        isn't in the notes, leave it out silently.
+        isn't in the notes, leave it out silently. Never write your own
+        reasoning into the plan ("today it's open", "as requested").
+        {language_rule}
 
         Write, in this order:
         1. A two-sentence opening about the destination (not the home city).
@@ -176,9 +185,11 @@ def quick_plan(
            lunch, afternoon and evening, the area for each half-day, travel time
            between areas, and a one-line indoor **Plan B** on outdoor-heavy days.
         4. Weather in °C, a packing list, and a budget table per person in one
-           currency, with low / likely / high columns, a total row, and a
-           "Hidden costs" line (tips, tourist tax, guides, entry fees for
-           cameras) so nothing surprises the traveller.
+           currency for costs ON THE GROUND only (lodging, food, local
+           transport, entry fees), with low / likely / high columns and a total
+           row, titled as a rough estimate. Do not price flights: say they are
+           not included. Add a "Hidden costs" line (tips, tourist tax, guides,
+           entry fees for cameras) so nothing surprises the traveller.
 
         {_PACING_RULES}
 
@@ -206,12 +217,22 @@ def quick_plan(
         for m in re.finditer(r"^\s*-\s*([^:(\[]+)", inspiration, re.M)
         if m.group(1).strip()
     ]
+    best = ""
     for _attempt in range(3):
         response = complete(**request)
         plan = (response.choices[0].message.content or "").strip()
         ok, _ = check(type("Out", (), {"raw": plan})())
-        if ok and all(name in plan.lower() for name in saved):
-            break
+        if ok:
+            best = plan
+            if all(name in plan.lower() for name in saved):
+                break
+    # A plan missing a saved spot is still a plan; a plan missing days is not.
+    # Say so instead of handing over a week's trip that stops after day one.
+    if not best:
+        raise RuntimeError(
+            "The AI model is busy and returned an incomplete plan. Please try again in a minute."
+        )
+    plan = best
     done(4)  # drafted; the opening-hours check (voyagent.hours) comes next
     # gpt-oss writes narrow no-break spaces and non-breaking hyphens
     # ("Sidi Bou Said"), which break search and copy-paste.

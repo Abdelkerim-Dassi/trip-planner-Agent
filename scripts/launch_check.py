@@ -53,6 +53,15 @@ def run_pages(base: str) -> None:
     for asset in ("/static/app.js", "/static/style.css"):
         check(f"asset {asset} loads", requests.get(base + asset, timeout=TIMEOUT).status_code == 200)
     check("API docs page loads", requests.get(base + "/api/docs", timeout=TIMEOUT).status_code == 200)
+    check("HEAD / answers (uptime monitors use it)", requests.head(base + "/", timeout=TIMEOUT).status_code == 200)
+    r = requests.get(base + "/c/example", timeout=TIMEOUT)
+    check("example report page renders", r.status_code == 200 and "Itinerary check" in r.text, str(r.status_code))
+    for path in ("/og.png", "/c/example/og.png"):
+        r = requests.get(base + path, timeout=TIMEOUT)
+        check(f"preview image {path} is a PNG", r.status_code == 200 and r.content[1:4] == b"PNG", str(r.status_code))
+    check("privacy page loads", requests.get(base + "/privacy", timeout=TIMEOUT).status_code == 200)
+    r = requests.get(base + "/robots.txt", timeout=TIMEOUT)
+    check("robots.txt keeps shared plans out of search", r.status_code == 200 and "Disallow: /p/" in r.text)
 
 
 def run_validation(base: str) -> None:
@@ -61,8 +70,12 @@ def run_validation(base: str) -> None:
 
     r = post(base, "/api/plans", {**good, "end": str(start - timedelta(days=1))})
     check("rejects end date before start", r.status_code == 422, str(r.status_code))
-    r = post(base, "/api/plans", {**good, "origin": "  "})
-    check("rejects blank origin", r.status_code == 422, str(r.status_code))
+    r = post(base, "/api/plans", {**good, "cities": "  "})
+    check("rejects blank destination", r.status_code == 422, str(r.status_code))
+    r = post(base, "/api/checks", {"text": "too short"})
+    check("rejects an itinerary that is too short", r.status_code == 422, str(r.status_code))
+    r = requests.get(base + "/api/checks/doesnotexist", timeout=TIMEOUT)
+    check("unknown check id gives 404", r.status_code == 404, str(r.status_code))
     r = post(base, "/api/plans", {**good, "start": "not-a-date"})
     check("rejects malformed date", r.status_code == 422, str(r.status_code))
     r = requests.get(base + "/api/plans/doesnotexist", timeout=TIMEOUT)
@@ -114,6 +127,40 @@ def run_discovery(base: str) -> None:
     check("unreadable TikTok link is reported", any("Couldn't read" in n for n in g["notes"]))
 
 
+PARIS = (
+    "3 days in Paris. Day 1: Louvre Museum in the morning, lunch at Bouillon Chartier, then the "
+    "Tuileries Garden. Day 2: Palace of Versailles. Day 3: Musee d'Orsay, lunch at Chez Luminara "
+    "Bistro, Eiffel Tower at sunset."
+)
+PARIS_START = "2026-12-15"  # a Tuesday: the Louvre is closed
+
+
+def run_check(base: str) -> None:
+    r = post(base, "/api/checks", {"text": PARIS, "start": PARIS_START})
+    if not check("itinerary check starts", r.status_code == 202, str(r.status_code)):
+        return
+    job_id, t0 = r.json()["id"], time.time()
+    while time.time() - t0 < 300:
+        job = requests.get(f"{base}/api/checks/{job_id}", timeout=TIMEOUT).json()
+        if job["status"] in ("done", "error"):
+            break
+        time.sleep(3)
+    secs = time.time() - t0
+    if not check("itinerary check finishes", job["status"] == "done", f"{job['status']} in {secs:.0f}s {job.get('error', '')[:120]}"):
+        return
+    report = job["report"]
+    issues = {(i["kind"], i["stop"]) for i in report["issues"]}
+    check("check finishes within 90s", secs < 90, f"{secs:.0f}s")
+    check("catches the Louvre on a Tuesday", ("closed", "Louvre Museum") in issues, str(sorted(issues))[:150])
+    check("flags the invented restaurant", any(k == "no_trace" and "Luminara" in s for k, s in issues))
+    summary = report["summary"]
+    check("most places are found on the map", summary["confirmed"] >= summary["places"] - 2,
+          f"{summary['confirmed']} of {summary['places']}")
+    check("report offers a fix list", "Louvre" in report["fix_prompt"])
+    r = requests.get(f"{base}/c/{job_id}", timeout=TIMEOUT)
+    check("shared report page renders", r.status_code == 200 and "noindex" in r.text, str(r.status_code))
+
+
 def run_mcp(base: str) -> None:
     r = requests.post(base + "/mcp", data="{}", timeout=TIMEOUT,
                       headers={"Host": "evil.example", "Content-Type": "application/json"})
@@ -128,12 +175,15 @@ def run_mcp(base: str) -> None:
                 init = await s.initialize()
                 check("MCP server identifies as reeltrip", init.server_info.name == "reeltrip", init.server_info.name)
                 tools = [t.name for t in (await s.list_tools()).tools]
-                check("MCP lists all 7 tools", len(tools) == 7, ", ".join(tools))
+                check("MCP lists its 7 tools", len(tools) == 7, ", ".join(tools))
+                check("MCP offers check_itinerary and not the slow planner",
+                      "check_itinerary" in tools and "plan_trip" not in tools)
                 calls = {
                     "verify_place": {"name": "Bardo Museum", "near": "Tunisia"},
                     "typical_weather": {"place": "Tozeur", "month": "December"},
                     "prayer_times": {"place": "Kairouan", "date": "2026-12-12"},
                     "transfer_options": {"origin": "Tunis", "destination": "Sousse"},
+                    "check_itinerary": {"itinerary": PARIS, "start_date": PARIS_START},
                 }
                 for name, args in calls.items():
                     res = await s.call_tool(name, args)
@@ -148,7 +198,7 @@ def run_mcp(base: str) -> None:
 
 def run_full_plan(base: str) -> None:
     start = date.today() + timedelta(days=40)
-    body = {"origin": "Paris", "cities": "Tunis", "start": str(start), "end": str(start + timedelta(days=2)),
+    body = {"cities": "Tunis", "start": str(start), "end": str(start + timedelta(days=2)),
             "interests": "history, food", "inspiration": "- Sidi Bou Said: blue-and-white village [3 videos]"}
     r = post(base, "/api/plans", body)
     if not check("plan job starts", r.status_code == 202, str(r.status_code)):
@@ -169,6 +219,9 @@ def run_full_plan(base: str) -> None:
     days = sum(f"Day {i}" in plan for i in range(1, 4))
     check("plan covers every travel day", days == 3, f"{days}/3 day sections, {len(plan)} chars")
     check("plan includes the TikTok spot", "Sidi Bou" in plan)
+    review = job.get("review") or {}
+    check("plan comes with its check report", bool(review.get("summary", {}).get("places")),
+          str(review.get("summary"))[:120])
     r = requests.get(f"{base}/p/{job_id}", timeout=TIMEOUT)
     check("share page renders the plan", r.status_code == 200 and "Shared trip plan" in r.text, str(r.status_code))
 
@@ -184,7 +237,7 @@ def main() -> int:
 
     sections = [run_pages, run_validation, run_mcp]
     if not args.skip_discovery:
-        sections.insert(2, run_discovery)
+        sections[2:2] = [run_check, run_discovery]
     if args.full:
         sections.append(run_full_plan)
     for section in sections:

@@ -14,29 +14,38 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import os
 import sys
+from datetime import date as _date
 
 import anyio
 from mcp.server.mcpserver import Context, MCPServer
 
-from voyagent import places, social, travel_info
-from voyagent.jobs import PHASES, PlanJob
+from voyagent import limits, places, social, storage, travel_info
+from voyagent.jobs import PHASES, CheckJob, PlanJob
+
+PUBLIC_URL = os.environ.get("VOYAGENT_PUBLIC_URL") or os.environ.get(
+    "RENDER_EXTERNAL_URL", "https://reeltrip.onrender.com"
+)
 
 INSTRUCTIONS = """
-ReelTrip gives you grounded, verified travel data, with a focus on North Africa
+ReelTrip checks trip plans against the real world, with a focus on North Africa
 and the Middle East (halal-friendly, prayer-time aware) but working worldwide.
+
+When you have written or been given a day-by-day itinerary, call
+check_itinerary with its full text before presenting it as final. It looks up
+every named place on OpenStreetMap, flags places with no trace on the map or
+the web, places far from the town their day is set in, visits on a weekly
+closing day, and days that cover too much ground. Fix what it reports, tell the
+user what was checked, and give them the share link.
 
 Good workflow for a trip request:
 1. trending_spots(destination, month) to see what travellers love on TikTok,
    or spots_from_tiktok_links(links) when the user shares videos they saved.
 2. typical_weather and transfer_options to reality-check the ideas: distance,
-   season, how to get there. Say plainly when a TikTok favourite is far away or
-   a poor fit for the season.
-3. verify_place before recommending any place you are unsure exists.
-4. Build the itinerary yourself, grouping places by area. Cite the TikTok
-   videos and sources the tools return.
-Use plan_trip only when the user explicitly wants ReelTrip's own full plan;
-it takes several minutes.
+   season, how to get there.
+3. Build the itinerary yourself, grouping places by area.
+4. check_itinerary on the result, then correct it.
 """.strip()
 
 mcp = MCPServer(
@@ -126,7 +135,64 @@ async def transfer_options(origin: str, destination: str) -> dict:
     return await _in_thread(travel_info.transfer_options, origin, destination)
 
 
-@mcp.tool(title="Full ReelTrip plan (slow)")
+@mcp.tool(title="Check an itinerary")
+async def check_itinerary(
+    itinerary: str,
+    start_date: str = "",
+    destination: str = "",
+    halal: bool = False,
+    ctx: Context | None = None,
+) -> dict:
+    """Check a day-by-day itinerary against the map and published opening days.
+
+    Looks up every named place on OpenStreetMap near the town its day is set
+    in, and reports: places with no trace on the map or the web (possibly
+    invented), places far from that town (wrong place or long detour), sights
+    scheduled on their weekly closing day, and days that cover too much
+    distance or too many sights. Takes up to a minute.
+
+    Args:
+        itinerary: The full itinerary text, with its days and place names.
+        start_date: First day of the trip as YYYY-MM-DD. Needed to match
+            closing days to weekdays; leave empty if unknown.
+        destination: Optional main city or country, e.g. "Tunis, Tunisia".
+        halal: Also flag Fridays (midday prayer) and Ramadan for the traveller.
+
+    Returns the findings ("issues", most serious first), per-place results
+    ("stops"), counts ("summary"), and "share_url": a public page with the
+    report on a map.
+    """
+    if not limits.spend("mcp", limits.MCP_CALLS_BUDGET):
+        raise RuntimeError("ReelTrip's free daily capacity is used up. Please try again tomorrow.")
+    try:
+        start = _date.fromisoformat(start_date) if start_date else None
+    except ValueError:
+        start = None
+    job = CheckJob(itinerary, start, halal, destination)
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(anyio.to_thread.run_sync, job.run)
+        reported = -1
+        while job.status in ("queued", "running"):
+            if ctx is not None and job.total and job.done != reported:
+                reported = job.done
+                await ctx.report_progress(job.done, job.total, job.label)
+            await anyio.sleep(1)
+    if job.status == "error":
+        raise RuntimeError(job.error)
+    storage.save("reviews", job.id, job.to_dict())
+    report = job.report or {}
+    return {
+        "summary": report.get("summary"),
+        "issues": report.get("issues"),
+        "stops": [
+            {k: s[k] for k in ("day", "name", "kind", "status", "where", "distance_km", "closed_days")}
+            for s in report.get("stops", [])
+        ],
+        "notes": report.get("notes"),
+        "share_url": f"{PUBLIC_URL.rstrip('/')}/c/{job.id}",
+    }
+
+
 async def plan_trip(
     origin: str,
     destinations: str,
@@ -165,6 +231,13 @@ async def plan_trip(
     if job.status == "error":
         raise RuntimeError(f"Planning failed: {job.error}")
     return job.result
+
+
+# A full plan costs a minute of model time and a dozen searches, and the host
+# assistant can write the plan itself. Offered only where the operator opts
+# in (e.g. a private, local server).
+if os.environ.get("VOYAGENT_MCP_PLAN_TRIP", "").lower() in ("1", "true", "yes"):
+    mcp.tool(title="Full ReelTrip plan (slow)")(plan_trip)
 
 
 def main() -> None:

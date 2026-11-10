@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Trip plan from {{ plan.request.origin }} · {{ plan.request.travel_dates }} · ReelTrip{% endblock %}
-{% block description %}A verified day-by-day trip plan ({{ plan.request.cities }}) made with ReelTrip: every stop checked on the map and against its opening days.{% endblock %}
+{% set s = plan.review.summary if plan.review else none %}
+{% block title %}Trip plan: {{ plan.request.cities }} · {{ plan.request.travel_dates }} · ReelTrip{% endblock %}
+{% block description %}A day-by-day trip plan ({{ plan.request.cities }}) made and checked with ReelTrip{% if s %}: {{ s.confirmed + s.far }} of {{ s.places }} places found on the map{% if s.hours_checked %}, opening days checked for {{ s.hours_checked }} sights{% endif %}{% endif %}.{% endblock %}
 {% block social_meta %}
   <meta property="og:url" content="{{ public_url }}/p/{{ plan.id }}">
   <meta property="og:image" content="{{ public_url }}/p/{{ plan.id }}/og.png">
@@ -8,31 +9,39 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="{{ public_url }}/p/{{ plan.id }}/og.png">
+  <meta name="robots" content="noindex">
 {% endblock %}
 {% block content %}
 <header class="hero hero-small">
   <span class="badge">✈️ Shared trip plan</span>
   <h1>{{ plan.request.cities }}</h1>
-  <p>From {{ plan.request.origin }} · {{ plan.request.travel_dates }} · loves {{ plan.request.interests }}</p>
+  <p>{% if plan.request.origin and plan.request.origin != "not given" %}From {{ plan.request.origin }} · {% endif %}{{ plan.request.travel_dates }}{% if plan.request.interests %} · loves {{ plan.request.interests }}{% endif %}</p>
 </header>
-<article class="card plan" id="plan"></article>
-<section class="card" id="checks" hidden></section>
+<article class="card plan" id="plan" dir="auto"></article>
+<section class="card report" id="checks" hidden></section>
 <div class="actions">
-  <a class="button" href="/">✨ Plan your own trip</a>
-  <a class="button" href="/p/{{ plan.id }}/post">📸 Post this trip</a>
+  <a class="button primary" href="/#plan">✨ Plan your own trip</a>
+  <a class="button" href="/">✅ Check an itinerary</a>
   <a class="button" href="/p/{{ plan.id }}/plan.ics">📅 Add to calendar</a>
+  <a class="button" href="/p/{{ plan.id }}/post">📸 Post this trip</a>
   <button type="button" onclick="window.print()">🖨️ Print / PDF</button>
 </div>
 <script type="application/json" id="plan-data">{{ plan.result | tojson }}</script>
 <script type="application/json" id="checks-data">{{ (plan.checks or []) | tojson }}</script>
+<script type="application/json" id="review-data">{{ (plan.review or none) | tojson }}</script>
 {% endblock %}
 {% block scripts %}
-<script src="/static/checks.js?v=2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/static/checks.js?v=3"></script>
+<script src="/static/report.js?v=3"></script>
 <script>
   window.addEventListener("DOMContentLoaded", () => {
-    const md = JSON.parse(document.getElementById("plan-data").textContent);
-    document.getElementById("plan").innerHTML = DOMPurify.sanitize(marked.parse(md));
-    window.renderChecks(JSON.parse(document.getElementById("checks-data").textContent), document.getElementById("checks"));
+    const read = (id) => JSON.parse(document.getElementById(id).textContent);
+    document.getElementById("plan").innerHTML = DOMPurify.sanitize(marked.parse(read("plan-data")));
+    const review = read("review-data");
+    const box = document.getElementById("checks");
+    if (review) window.renderReport(review, box, { title: "✅ What we checked" });
+    else window.renderChecks(read("checks-data"), box);
   });
 </script>
 {% endblock %}

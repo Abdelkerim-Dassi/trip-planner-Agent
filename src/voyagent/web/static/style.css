@@ -66,11 +66,11 @@ a { color: var(--pink); }
 
 form label { display: block; font-weight: 500; font-size: .92rem; margin-bottom: .9rem; }
 form small { font-weight: 300; color: var(--muted); }
-input, textarea {
+input, textarea, select {
   display: block; width: 100%; margin-top: .35rem; font: inherit; color: inherit;
   border: 1px solid #f1d9d0; border-radius: 12px; padding: .65rem .8rem; background: #fffdfc;
 }
-input:focus, textarea:focus { outline: 2px solid #ffb3c9; border-color: var(--pink); }
+input:focus, textarea:focus, select:focus { outline: 2px solid #ffb3c9; border-color: var(--pink); }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
 @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
 
@@ -122,7 +122,7 @@ button:hover, .button:hover { border-color: var(--pink); }
 
 /* Progress */
 .bar { height: 10px; border-radius: 999px; background: #fbe9f0; overflow: hidden; margin: .6rem 0 1rem; }
-#bar-fill { height: 100%; width: 4%; background: var(--sunset); transition: width .6s ease; }
+.bar-fill { height: 100%; width: 4%; background: var(--sunset); transition: width .6s ease; }
 .phases { margin: 0; padding-left: 1.2rem; color: var(--muted); line-height: 1.9; }
 .phases li.done { color: var(--ok); }
 .phases li.done::marker { content: "✓  "; }
@@ -148,7 +148,7 @@ button:hover, .button:hover { border-color: var(--pink); }
 
 @media print {
   body { background: #fff; }
-  .hero, form, #discover, #progress, .actions, .support, .foot, .result-head, #checks { display: none !important; }
+  .hero, form, .tabs, #how, #discover, #progress, #check-progress, .actions, .support, .foot, .result-head, .report-map { display: none !important; }
   .card { box-shadow: none; border: none; padding: 0; }
 }
 
@@ -167,3 +167,56 @@ a.pill { text-decoration: none; }
 .caption-box { white-space: pre-wrap; background: #fff8fb; border: 1px dashed #ffc2d4; border-radius: 14px; padding: .8rem 1rem; font-size: .92rem; }
 .post-section { margin-top: 1rem; }
 .post-section h3 { margin: 0 0 .4rem; font-size: 1rem; }
+
+/* Tabs: check an itinerary / plan from TikTok */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: 1rem; }
+.tabs button { padding: .7rem .6rem; font-weight: 600; border-radius: 16px; background: #fff8fb; }
+.tabs button.active { color: #fff; background: var(--sunset); border-color: transparent; box-shadow: 0 12px 26px -14px rgba(210, 59, 119, .8); }
+@media (max-width: 560px) {
+  .hero { padding: 1.5rem 1.1rem 1.6rem; }
+  .hero p { font-size: .92rem; }
+}
+
+textarea { resize: vertical; line-height: 1.5; }
+label.check.halal { align-self: end; padding-bottom: .65rem; }
+.form-links { text-align: center; margin: .8rem 0 0; font-size: .9rem; color: var(--muted); }
+button.link { border: none; background: none; padding: 0; color: var(--pink); text-decoration: underline; border-radius: 0; }
+.button.primary { color: #fff; background: var(--sunset); border-color: transparent; font-weight: 600; }
+
+.how ul { margin: .4rem 0 .6rem; padding-left: 1.2rem; line-height: 1.7; }
+
+/* Itinerary check report */
+#check-result .report { border-top-left-radius: 0; border-top-right-radius: 0; }
+.verdict { border-radius: 16px; padding: .9rem 1rem; margin-bottom: .2rem; background: #e9f8f1; border: 1px solid #bfe9d6; }
+.verdict strong { font-family: "Playfair Display", serif; font-size: 1.5rem; display: block; margin-bottom: .45rem; }
+.verdict.bad { background: #fff0f3; border-color: #ffc2d0; }
+.verdict.bad strong { color: #c0264f; }
+.verdict.warn { background: #fff6ea; border-color: #ffd9a8; }
+.verdict.warn strong { color: #b45309; }
+.verdict.ok strong { color: var(--ok); }
+.chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip { font-size: .78rem; padding: .18rem .6rem; border-radius: 999px; background: #fff; border: 1px solid var(--line); }
+.chip.bad { color: #c0264f; border-color: #ffc2d0; }
+.chip.warn { color: #b45309; border-color: #ffd9a8; }
+.report-map { height: 320px; }
+.pin {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  color: #fff; font: 600 12px/1 "Poppins", sans-serif; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+}
+.pin.far { outline: 3px dashed #b45309; outline-offset: 1px; }
+.issues { list-style: none; margin: .2rem 0 1rem; padding: 0; display: grid; gap: .6rem; }
+.issue { border: 1px solid var(--line); border-left-width: 5px; border-radius: 12px; padding: .6rem .8rem; background: #fffdfc; }
+.issue.bad { border-left-color: #e0355f; }
+.issue.warn { border-left-color: #f59e0b; }
+.issue.info { border-left-color: #8b7fd6; }
+.issue .pill { margin-right: .35rem; }
+.issue .small { margin-top: .2rem; }
+.pill.ok { background: #e9f8f1; color: var(--ok); }
+.pill.bad { background: #ffe4ea; color: #c0264f; }
+.pill.info { background: #eef2ff; color: #4b44c9; }
+.by-day summary { cursor: pointer; font-weight: 600; margin: .4rem 0; }
+.day-block h3 { font-size: 1rem; margin: .9rem 0 .3rem; display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.stops { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.stops li { padding: .4rem .6rem; border: 1px solid var(--line); border-radius: 10px; background: #fffdfc; }
+.stop-name { font-weight: 500; margin-right: .3rem; }

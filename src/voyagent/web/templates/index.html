@@ -1,19 +1,79 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="hero">
-  <span class="badge">✈️ From saved reels to real trips</span>
+  <span class="badge">✅ The reality check for trip plans</span>
   <h1>ReelTrip</h1>
-  <p>Saw a place on TikTok? Turn the spots travellers love into a real,
-     verified day-by-day plan, with the honest advice a seasoned travel agent would give.</p>
+  <p>Your AI planned your trip. We check it against the real world: each place looked up
+     on the map, with closed days, wrong cities and impossible days flagged. Free, no account.</p>
 </header>
 
+<nav class="tabs" aria-label="What do you want to do?">
+  <button type="button" data-mode="check" class="active">✅ Check an itinerary</button>
+  <button type="button" data-mode="plan">📱 Plan from TikTok</button>
+</nav>
+
+<div id="mode-check">
+<form id="check-form" class="card" autocomplete="off">
+  <label>Paste your itinerary <small>(from ChatGPT, Gemini, a blog, or your own notes)</small>
+    <textarea name="text" rows="9" maxlength="20000" required
+      placeholder="Day 1 – Tunis: Medina, Zitouna Mosque, lunch at Dar El Jeld, Bardo Museum…"></textarea>
+  </label>
+  <div class="row">
+    <label>📅 First day of the trip <small>(optional: needed to catch closed days)</small>
+      <input type="date" name="start">
+    </label>
+    <label class="check halal">
+      <input type="checkbox" name="halal">
+      🕌 Also flag Friday prayer and Ramadan
+    </label>
+  </div>
+  <button type="submit" class="cta" id="check-go">Check my itinerary ✅</button>
+  <p class="form-links">
+    <button type="button" class="link" id="example">Try with an example</button> ·
+    <a href="/c/example">See an example report</a>
+  </p>
+  <p class="error" id="check-error" hidden></p>
+</form>
+
+<section id="check-progress" class="card" hidden>
+  <h2 id="check-label">Reading the itinerary…</h2>
+  <div class="bar"><div id="check-bar" class="bar-fill"></div></div>
+  <p class="muted small">Each place is looked up on OpenStreetMap, one per second, so a long trip takes about a minute.</p>
+</section>
+
+<section id="check-result" hidden>
+  <div class="result-head">✅ Your itinerary check</div>
+  <article class="card report" id="report"></article>
+  <div class="actions">
+    <button type="button" id="copy-fix" hidden>📋 Copy the fix list for ChatGPT</button>
+    <button type="button" id="copy-report">🔗 Copy report link</button>
+    <a class="button" id="open-report" href="#">↗ Open report page</a>
+    <button type="button" id="check-again">↺ Check another</button>
+  </div>
+</section>
+
+<section id="how" class="card how">
+  <h2>What gets checked</h2>
+  <ul>
+    <li><strong>It exists.</strong> Each named place is looked up on OpenStreetMap. A place with no trace on the map or the web is flagged: AI planners do invent them.</li>
+    <li><strong>It's where the plan says.</strong> A restaurant "in Kairouan" that is really 135 km away gets caught.</li>
+    <li><strong>It's open that day.</strong> Museums and monuments are matched to their weekly closing day, with the source.</li>
+    <li><strong>The day fits.</strong> Days that cover too much distance or too many sights are called out.</li>
+    <li><strong>Friday prayer and Ramadan</strong>, if you ask for them.</li>
+  </ul>
+  <p class="muted small">We say exactly how much was checked, never "everything". Your pasted text is not stored; only the report is.</p>
+</section>
+
+</div>
+
+<div id="mode-plan" hidden>
 <form id="trip-form" class="card" autocomplete="on">
   <div class="row">
-    <label>🛫 Where from?
-      <input name="origin" placeholder="Paris" required>
+    <label>🌍 Where to? <small>(one place, or a few to choose from)</small>
+      <input name="cities" placeholder="Tunis" required>
     </label>
-    <label>🌍 Where to? <small>(one or more, comma-separated)</small>
-      <input name="cities" placeholder="Tunis, Djerba, Tozeur" required>
+    <label>🛫 Where from? <small>(optional)</small>
+      <input name="origin" placeholder="Paris">
     </label>
   </div>
   <div class="row">
@@ -24,9 +84,18 @@
       <input type="date" name="end" required>
     </label>
   </div>
-  <label>💛 What do you love?
-    <input name="interests" placeholder="food, history, desert, beaches" required>
-  </label>
+  <div class="row">
+    <label>💛 What do you love? <small>(optional)</small>
+      <input name="interests" placeholder="food, history, desert, beaches">
+    </label>
+    <label>🗣️ Plan language
+      <select name="language">
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="ar">العربية</option>
+      </select>
+    </label>
+  </div>
   <label class="check halal">
     <input type="checkbox" name="halal">
     🕌 Halal food and prayer times in my plan
@@ -49,7 +118,7 @@
 
 <section id="discover" class="card" hidden>
   <h2>📱 Spots travellers love</h2>
-  <p class="muted" id="discover-status">Reading TikTok and checking every place on the map…</p>
+  <p class="muted" id="discover-status">Reading TikTok and looking up each place on the map…</p>
   <div id="map" class="map"></div>
   <div id="spots" class="spots"></div>
   <p class="muted small" id="discover-notes"></p>
@@ -58,23 +127,23 @@
 
 <section id="progress" class="card" hidden>
   <h2 id="phase-label">✈️ Choosing your destination…</h2>
-  <div class="bar"><div id="bar-fill"></div></div>
+  <div class="bar"><div id="bar-fill" class="bar-fill"></div></div>
   <ol class="phases" id="phases">
     {% for p in phases %}<li>{{ p }}</li>{% endfor %}
   </ol>
-  <p class="muted small" id="ticker">This takes a few minutes. Our crew checks everything it recommends.</p>
+  <p class="muted small" id="ticker">This takes a couple of minutes: the plan is written, then checked place by place.</p>
 </section>
 
 <section id="result" hidden>
   <div class="result-head">🧳 Your itinerary</div>
-  <article class="card plan" id="plan"></article>
-  <section class="card" id="checks" hidden></section>
+  <article class="card plan" id="plan" dir="auto"></article>
+  <section class="card report" id="checks" hidden></section>
   <div class="actions">
-    <a class="button" id="post" href="#">📸 Post this trip</a>
     <button type="button" id="share">🔗 Copy share link</button>
     <a class="button" id="ics" href="#">📅 Add to calendar</a>
-    <button type="button" id="download">⬇️ Download</button>
+    <a class="button" id="post" href="#">📸 Post this trip</a>
     <button type="button" id="print">🖨️ Print / PDF</button>
+    <button type="button" id="download">⬇️ Download text</button>
     <button type="button" id="again">↺ Plan another trip</button>
   </div>
   {% if support_url %}
@@ -84,10 +153,12 @@
   </aside>
   {% endif %}
 </section>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="/static/checks.js?v=2"></script>
-<script src="/static/app.js?v=2"></script>
+<script src="/static/checks.js?v=3"></script>
+<script src="/static/report.js?v=3"></script>
+<script src="/static/app.js?v=4"></script>
 {% endblock %}

@@ -7,12 +7,18 @@ agents use.
 
 from __future__ import annotations
 
+import logging
 import os
 
 from dotenv import load_dotenv
 
 # Load .env once, on import.
 load_dotenv()
+
+# The HTTP client logs every request URL at INFO, and Gemini's URL carries the
+# API key ("?key=..."). Keep those lines out of the logs, here and on the host.
+for _noisy in ("httpx", "httpcore", "LiteLLM", "litellm"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 # --- Provider & model configuration --------------------------------------------
 
@@ -26,8 +32,8 @@ _DEFAULT_MODELS = {
     "openai": "gpt-4o-mini",
     # Groq retired llama-3.3-70b-versatile; gpt-oss-120b is on its free tier.
     "groq": "openai/gpt-oss-120b",
-    # Free-tier Flash model (gemini-flash-latest was often overloaded, 503).
-    "gemini": "gemini-3.5-flash",
+    # Flash-Lite: the full Flash model allows only ~20 free requests a day.
+    "gemini": "gemini-3.5-flash-lite",
 }
 
 #: The chat model every agent uses. Change it here once, not per-agent.
@@ -95,41 +101,59 @@ def litellm_model() -> str:
     return MODEL_NAME if PROVIDER == "openai" else f"{PROVIDER}/{MODEL_NAME}"
 
 
+#: Groq's small, fast model. It has its own rate limit, separate from the
+#: plan writer's, and answers short extraction jobs in under a second.
+_FAST_GROQ_MODEL = "groq/qwen/qwen3.8-27b"
+#: Gemini's Flash-Lite. The full Flash model allows only about 20 free
+#: requests a day and can take a minute to answer; Flash-Lite does neither.
+_FREE_GEMINI_MODEL = "gemini/gemini-3.5-flash-lite"
+
+
 def discovery_model() -> str:
-    """LiteLLM model id for reading places out of TikTok captions.
+    """LiteLLM model id for the short, frequent jobs a visitor waits on:
+    listing the places in an itinerary or in TikTok captions, and reading
+    opening hours during a check.
 
-    Set VOYAGENT_DISCOVERY_MODEL to run this short, frequent step on a different
-    free provider than the long crew runs (e.g. ``groq/openai/gpt-oss-120b``),
-    so the two don't share one rate limit.
+    On Groq this defaults to the small fast model, so these jobs don't use up
+    the plan writer's per-minute budget. Override with VOYAGENT_DISCOVERY_MODEL.
     """
-    return os.environ.get("VOYAGENT_DISCOVERY_MODEL") or litellm_model()
+    return os.environ.get("VOYAGENT_DISCOVERY_MODEL") or (
+        _FAST_GROQ_MODEL if PROVIDER == "groq" else litellm_model()
+    )
 
 
-#: Free-tier model to fall back on when the primary is rate-limited or
-#: overloaded. Defaults to Gemini when a Gemini key is set and the agents run
-#: elsewhere; set VOYAGENT_FALLBACK_MODEL="" to disable.
-_DEFAULT_FALLBACK = (
-    f"gemini/{_DEFAULT_MODELS['gemini']}"
-    if os.environ.get("GEMINI_API_KEY") and PROVIDER != "gemini"
-    else ""
-)
+def fallback_models() -> list[str]:
+    """Free models to try, in order, when the one asked for is rate-limited or
+    overloaded.
+
+    Defaults to Groq's fast model (when a Groq key is set) and then Gemini
+    Flash-Lite (when a Gemini key is set). Set VOYAGENT_FALLBACK_MODEL to a
+    comma-separated list of LiteLLM model ids to choose your own, or to "" for
+    none.
+    """
+    configured = os.environ.get("VOYAGENT_FALLBACK_MODEL")
+    if configured is not None:
+        return [m.strip() for m in configured.split(",") if m.strip()]
+    models = []
+    if os.environ.get("GROQ_API_KEY"):
+        models.append(_FAST_GROQ_MODEL)
+    if os.environ.get("GEMINI_API_KEY") and PROVIDER != "gemini":
+        models.append(_FREE_GEMINI_MODEL)
+    return [m for m in models if m != litellm_model()]
 
 
 def fallback_model() -> str:
-    """LiteLLM model id used when the primary model is busy ("" for none)."""
-    return os.environ.get("VOYAGENT_FALLBACK_MODEL", _DEFAULT_FALLBACK)
+    """The first fallback model ("" for none); see :func:`fallback_models`."""
+    models = fallback_models()
+    return models[0] if models else ""
 
 
 def helper_model() -> str:
-    """LiteLLM model id for short side jobs: finding the places a plan
-    schedules, reading opening hours out of search snippets, and writing
-    social posts.
-
-    Defaults to the fallback model (free Gemini when its key is set), so these
-    calls don't use up the main model's per-minute budget, then to the
-    discovery model. Override with VOYAGENT_HELPER_MODEL.
+    """LiteLLM model id for small background jobs (captions, the older
+    opening-hours check). Defaults to the discovery model; override with
+    VOYAGENT_HELPER_MODEL.
     """
-    return os.environ.get("VOYAGENT_HELPER_MODEL") or fallback_model() or discovery_model()
+    return os.environ.get("VOYAGENT_HELPER_MODEL") or discovery_model()
 
 
 def build_llm():

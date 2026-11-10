@@ -4,6 +4,7 @@
 {% block social_meta %}
   <meta property="og:image" content="{{ public_url }}/p/{{ plan.id }}/og.png">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="robots" content="noindex">
 {% endblock %}
 {% block content %}
 <header class="hero hero-small">
@@ -37,7 +38,7 @@
 </section>
 <div class="actions">
   <a class="button" href="/p/{{ plan.id }}">← Back to the plan</a>
-  <a class="button" href="/">✨ Plan another trip</a>
+  <a class="button" href="/#plan">✨ Plan another trip</a>
 </div>
 {% endblock %}
 {% block scripts %}

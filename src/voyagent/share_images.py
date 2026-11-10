@@ -119,7 +119,7 @@ def _text_block(draw, xy, text, font, fill, width, max_lines, spacing=1.25) -> i
 def _footer(draw, size, color=(255, 255, 255)) -> None:
     w, h = size
     font = _font(30, "bold")
-    label = f"Plan yours free · {PUBLIC_HOST}"
+    label = f"Check yours free · {PUBLIC_HOST}"
     draw.text(((w - draw.textlength(label, font=font)) / 2, h - 80), label, font=font, fill=color)
 
 
@@ -147,9 +147,9 @@ def og_card(plan: dict) -> bytes:
     image = _gradient(OG_SIZE)
     draw = ImageDraw.Draw(image)
     draw.text((70, 60), "ReelTrip", font=_font(34, "bold"), fill="white")
-    draw.text((70, 104), "From saved reels to real trips", font=_font(24), fill=(255, 235, 245))
+    draw.text((70, 104), "Trip plans, checked against the real world", font=_font(24), fill=(255, 235, 245))
     y = _text_block(draw, (70, 175), _title(plan), _font(92, "bold"), "white", 1060, 2, 1.1)
-    sub = f"{len(days)}-day verified plan" if days else "Verified trip plan"
+    sub = f"{len(days)}-day checked plan" if days else "Checked trip plan"
     if req.get("travel_dates"):
         sub += f" · {req['travel_dates']}"
     y = _text_block(draw, (70, y + 10), sub, _font(34), "white", 1060, 2)
@@ -164,6 +164,53 @@ def og_card(plan: dict) -> bytes:
         draw.rounded_rectangle((x, y + 24, x + width, y + 74), radius=25, fill=(255, 255, 255))
         draw.text((x + 20, y + 33), label, font=font, fill=_PINK)
         x += width + 14
+    draw.text((70, OG_SIZE[1] - 64), PUBLIC_HOST, font=_font(26), fill=(255, 235, 245))
+    return _png(image)
+
+
+def _verdict(summary: dict) -> str:
+    problems, warnings = summary.get("problems", 0), summary.get("warnings", 0)
+    if problems:
+        return f"{problems} problem{'s' if problems != 1 else ''} found"
+    if warnings:
+        return f"{warnings} thing{'s' if warnings != 1 else ''} to double-check"
+    return "No problems found"
+
+
+def report_card(report: dict) -> bytes:
+    """Link preview for a shared itinerary check: the verdict in one glance."""
+    summary = report.get("summary", {})
+    image = _gradient(OG_SIZE)
+    draw = ImageDraw.Draw(image)
+    draw.text((70, 60), "ReelTrip", font=_font(34, "bold"), fill="white")
+    draw.text((70, 104), "Itinerary check", font=_font(24), fill=(255, 235, 245))
+    title = report.get("destination") or "Trip plan"
+    y = _text_block(draw, (70, 170), title, _font(76, "bold"), "white", 1060, 2, 1.1)
+    y = _text_block(draw, (70, y + 14), _verdict(summary), _font(58, "bold"), "white", 1060, 1)
+    found = summary.get("confirmed", 0) + summary.get("far", 0)
+    sub = f"{found} of {summary.get('places', 0)} places found on the map"
+    if summary.get("hours_checked"):
+        sub += f" · opening days checked for {summary['hours_checked']}"
+    _text_block(draw, (70, y + 16), sub, _font(30), (255, 235, 245), 1060, 2)
+    draw.text((70, OG_SIZE[1] - 64), f"Check yours free · {PUBLIC_HOST}", font=_font(26), fill=(255, 235, 245))
+    return _png(image)
+
+
+@lru_cache(maxsize=1)
+def home_card() -> bytes:
+    """Link preview for the home page."""
+    image = _gradient(OG_SIZE)
+    draw = ImageDraw.Draw(image)
+    draw.text((70, 60), "ReelTrip", font=_font(34, "bold"), fill="white")
+    y = _text_block(
+        draw, (70, 160), "Your AI planned your trip. We check it.", _font(80, "bold"), "white", 1060, 3, 1.1
+    )
+    _text_block(
+        draw, (70, y + 24),
+        "Each place looked up on the map. Closed days, wrong cities and impossible days flagged. "
+        "Free, no account.",
+        _font(32), (255, 235, 245), 1060, 3,
+    )
     draw.text((70, OG_SIZE[1] - 64), PUBLIC_HOST, font=_font(26), fill=(255, 235, 245))
     return _png(image)
 
@@ -209,7 +256,8 @@ def _day_slide(plan: dict, day) -> Image.Image:
             text = rest
         else:
             text = item
-        y = _text_block(draw, (x0, y), text.split(" | ")[0], _font(40), _INK, width, 3) + 26
+        # "Area | Activity" rows: the longest cell is the one that says what to do.
+        y = _text_block(draw, (x0, y), max(text.split(" | "), key=len), _font(38), _INK, width, 3) + 26
     checked = [
         c["name"] for c in plan.get("checks", [])
         if day.number in (c.get("days") or []) and c.get("status") in ("ok", "moved")
@@ -279,13 +327,22 @@ def _map(points: list[tuple[float, float]], size: tuple[int, int]) -> Image.Imag
 
 
 def _map_slide(plan: dict) -> Image.Image | None:
-    placed = [c for c in plan.get("checks", []) if c.get("lat") is not None and c.get("lon") is not None]
+    stops = (plan.get("review") or {}).get("stops") or plan.get("checks", [])
+    placed, seen = [], set()
+    for c in stops:
+        if c.get("lat") is None or c.get("lon") is None or c["name"] in seen:
+            continue
+        if c.get("status") == "far":
+            continue  # a wrong-city match would zoom the map out to nothing
+        seen.add(c["name"])
+        placed.append(c)
+    placed = placed[:14]
     if not placed:
         return None
     w, h = SLIDE_SIZE
     image = _gradient(SLIDE_SIZE)
     draw = ImageDraw.Draw(image)
-    draw.text((70, 70), "Every stop, on the map", font=_font(56, "bold"), fill="white")
+    draw.text((70, 70), f"{len(placed)} stops, found on the map", font=_font(56, "bold"), fill="white")
     picture = _map([(c["lat"], c["lon"]) for c in placed], (w - 140, 760))
     if picture is None:
         return None
@@ -303,11 +360,11 @@ def _closing() -> Image.Image:
     w, h = SLIDE_SIZE
     image = _gradient(SLIDE_SIZE)
     draw = ImageDraw.Draw(image)
-    y = _text_block(draw, (90, 380), "Saw a place on TikTok?", _font(84, "bold"), "white", w - 180, 2, 1.1)
+    y = _text_block(draw, (90, 380), "Did an AI plan your trip?", _font(84, "bold"), "white", w - 180, 2, 1.1)
     y = _text_block(
         draw, (90, y + 30),
-        "Paste the link. ReelTrip checks every spot on the map and its opening days, "
-        "then plans your days around them.",
+        "Paste the plan. ReelTrip looks up each place on the map and flags closed days, "
+        "wrong cities and days that don't fit.",
         _font(46), "white", w - 180, 5,
     )
     _text_block(draw, (90, y + 50), "Free, no account.", _font(46, "bold"), "white", w - 180, 1)

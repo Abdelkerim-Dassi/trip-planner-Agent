@@ -25,6 +25,7 @@ log = logging.getLogger(__name__)
 DATA_DIR = Path(os.environ.get("VOYAGENT_DATA_DIR", "data"))
 REQUEST_TIMEOUT_SECONDS = 10
 _KEY = re.compile(r"^[0-9a-z_-]{1,64}$")
+_COUNTER_KEY = re.compile(r"^[0-9A-Za-z_.:-]{1,120}$")
 
 
 def _remote() -> tuple[str, str] | None:
@@ -100,6 +101,25 @@ def load(kind: str, key: str) -> dict | None:
     except OSError:
         pass
     return data
+
+
+def incr(key: str, ttl_seconds: int, amount: int = 1) -> int | None:
+    """Add ``amount`` to the shared counter ``key`` in Upstash and return its new value.
+
+    The counter expires ``ttl_seconds`` after its first use. Returns ``None``
+    when Upstash isn't configured or the call fails, so callers can fall back
+    to counting in memory.
+    """
+    if not _COUNTER_KEY.match(key):
+        raise ValueError(f"Invalid counter key: {key}")
+    name = f"reeltrip:count:{key}"
+    amount = int(amount)
+    value = _redis("INCR", name) if amount == 1 else _redis("INCRBY", name, str(amount))
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    if value == amount:  # first use of this counter: start its clock
+        _redis("EXPIRE", name, str(int(ttl_seconds)))
+    return value
 
 
 def is_remote() -> bool:

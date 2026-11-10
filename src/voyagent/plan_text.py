@@ -60,7 +60,9 @@ def _items(text: str) -> list[str]:
                 header_skipped = True
                 continue
             if len(cells) >= 2:
-                items.append(f"{cells[0]}: {cells[1]}")
+                # Keep every cell: in a "Time | Area | Activity" table the
+                # places are named in the last one.
+                items.append(f"{cells[0]}: " + " | ".join(cells[1:]))
             elif cells:
                 items.append(cells[0])
         elif re.match(r"^[-*+]\s+|^\d+\.\s+", line):
