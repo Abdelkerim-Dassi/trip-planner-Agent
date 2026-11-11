@@ -3,8 +3,8 @@
 {% set found = s.confirmed + s.far %}
 {% set verdict = (s.problems ~ " problem" ~ ("" if s.problems == 1 else "s") ~ " found") if s.problems
    else ((s.warnings ~ " thing" ~ ("" if s.warnings == 1 else "s") ~ " to double-check") if s.warnings else "No problems found") %}
-{% block title %}Itinerary check: {{ report.destination or "trip plan" }} · {{ verdict }} · ReelTrip{% endblock %}
-{% block description %}{{ found }} of {{ s.places }} places found on the map{% if s.hours_checked %}, opening days checked for {{ s.hours_checked }} sights{% endif %}. Checked by ReelTrip on {{ checked_on }}.{% endblock %}
+{% block title %}Itinerary check: {{ report.destination or "trip plan" }} · {{ verdict }} · TripCorrect{% endblock %}
+{% block description %}{{ found }} of {{ s.places }} places found on the map{% if s.hours_checked %}, opening days checked for {{ s.hours_checked }} sights{% endif %}. Checked by TripCorrect on {{ checked_on }}.{% endblock %}
 {% block social_meta %}
   <meta property="og:url" content="{{ public_url }}/c/{{ check.id }}">
   <meta property="og:image" content="{{ public_url }}/c/{{ check.id }}/og.png">

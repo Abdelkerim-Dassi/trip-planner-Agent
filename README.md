@@ -1,10 +1,10 @@
-# ReelTrip
+# TripCorrect
 
 **The reality check for trip plans.** Live at **[reeltrip.onrender.com](https://reeltrip.onrender.com)**.
 
-AI planners write confident itineraries with museums scheduled on the day they're closed, restaurants that are in another city, and places that don't exist. ReelTrip checks a plan against the real world and says exactly what it found.
+AI planners write confident itineraries with museums scheduled on the day they're closed, restaurants that are in another city, and places that don't exist. TripCorrect checks a plan against the real world and says exactly what it found.
 
-Paste any itinerary (from ChatGPT, Gemini, a blog, or your own notes) and ReelTrip:
+Paste any itinerary (from ChatGPT, Gemini, a blog, or your own notes) and TripCorrect:
 
 - **Looks up each named place on OpenStreetMap**, near the town that day is set in. A place with no trace on the map or the web is flagged as possibly invented.
 - **Catches the wrong city.** A lunch "in Kairouan" that is really 135 km away, in Sidi Bou Said, is a problem; a sight that far is a long detour.
@@ -16,7 +16,7 @@ Paste any itinerary (from ChatGPT, Gemini, a blog, or your own notes) and ReelTr
 
 It reports in counts ("17 of 20 places found on the map, opening days checked for 6 of 11 sights"), never "everything verified". See a real report: [reeltrip.onrender.com/c/example](https://reeltrip.onrender.com/c/example).
 
-ReelTrip also **plans**: it reads what travellers share on TikTok about a destination (or the TikTok links and captions you saved), keeps the places that are on the map, writes a day-by-day plan in English, French or Arabic, and then runs that plan through the same check. Halal food and prayer times on request.
+TripCorrect also **plans**: it reads what travellers share on TikTok about a destination (or the TikTok links and captions you saved), keeps the places that are on the map, writes a day-by-day plan in English, French or Arabic, and then runs that plan through the same check. Halal food and prayer times on request.
 
 And it works **inside Claude and ChatGPT** as an [MCP](https://modelcontextprotocol.io) server, so an assistant can check the itinerary it just wrote.
 
@@ -41,7 +41,7 @@ A place of the same name but the wrong kind (a "Dar Zarrouk" that is a wine shop
 
 ## How planning works
 
-In production ReelTrip runs in **quick mode** (`src/voyagent/quick_plan.py`): code gathers the facts first (the traveller's TikTok spots, the computed trip calendar and Ramadan dates, typical weather, a few web searches, prayer times and halal-tagged places when asked) and one model call writes the plan under grounding and pacing rules. The plan is then checked by `review.py`; a sight scheduled on its closing day is moved by one editing call, and the report is shown under the plan.
+In production TripCorrect runs in **quick mode** (`src/voyagent/quick_plan.py`): code gathers the facts first (the traveller's TikTok spots, the computed trip calendar and Ramadan dates, typical weather, a few web searches, prayer times and halal-tagged places when asked) and one model call writes the plan under grounding and pacing rules. The plan is then checked by `review.py`; a sight scheduled on its closing day is moved by one editing call, and the report is shown under the plan.
 
 **TikTok discovery** (`src/voyagent/social.py`) never scrapes TikTok or downloads videos. It searches Google's index of TikTok videos through Serper, has the model extract the places named in the captions, keeps the ones found on OpenStreetMap in the destination's country, and ranks them by how many videos mention them. Spots more than a day trip away are shown but left unticked.
 
@@ -82,7 +82,7 @@ A seven-agent [CrewAI](https://www.crewai.com/) crew (`crew.py`, `agents.py`, `t
 │   ├── plan_text.py          # Reads a plan's day sections and items
 │   ├── llm.py                # Model calls that ride out free-tier limits
 │   ├── config.py             # Env loading, provider/model selection
-│   ├── mcp_server.py         # ReelTrip MCP server (stdio or HTTP)
+│   ├── mcp_server.py         # TripCorrect MCP server (stdio or HTTP)
 │   ├── crew.py, agents.py, tasks.py, tools/   # The optional seven-agent crew
 │   └── web/                  # FastAPI app, page templates, static JS/CSS, example report
 ├── tests/                    # Offline tests (pytest)
@@ -127,7 +127,7 @@ python -m voyagent.web            # http://127.0.0.1:8000
 ```
 
 - **Check an itinerary:** paste a plan, add the first day of the trip (needed to match closing days to weekdays), and read the report. **Fix it for me** rewrites the plan and checks the rewrite. Finished reports live at `/c/<id>`. `/check/chatgpt`, `/check/gemini`, `/check/claude`, `/check/copilot` and `/check/perplexity` are the same page worded for each assistant.
-- **Plan from TikTok:** fill in where and when. With **Inspired by TikTok** on (or links pasted) ReelTrip first shows the spots travellers love on a map; untick what you'd skip and build the plan. Finished plans live at `/p/<id>`, with a calendar export and a **Post this trip** page.
+- **Plan from TikTok:** fill in where and when. With **Inspired by TikTok** on (or links pasted) TripCorrect first shows the spots travellers love on a map; untick what you'd skip and build the plan. Finished plans live at `/p/<id>`, with a calendar export and a **Post this trip** page.
 
 The JSON API is documented at `/api/docs`.
 
@@ -137,7 +137,7 @@ The JSON API is documented at `/api/docs`.
 python -m pytest tests -q
 ```
 
-### 5. Use ReelTrip from Claude or ChatGPT (MCP)
+### 5. Use TripCorrect from Claude or ChatGPT (MCP)
 
 Tools: `check_itinerary`, `trending_spots`, `spots_from_tiktok_links`, `verify_place`, `typical_weather`, `prayer_times`, `transfer_options`. (`plan_trip`, the full planner, is registered only when `VOYAGENT_MCP_PLAN_TRIP=1`, for private servers.)
 
@@ -148,7 +148,7 @@ Tools: `check_itinerary`, `trending_spots`, `spots_from_tiktok_links`, `verify_p
 ```json
 {
   "mcpServers": {
-    "reeltrip": {
+    "tripcorrect": {
       "command": "python",
       "args": ["-m", "voyagent.mcp_server"],
       "env": {
@@ -215,4 +215,4 @@ It looks places up on OpenStreetMap and reads published opening hours. It can mi
 
 Personal / educational project.
 
-The Python package and settings keep the original name (`voyagent`, `VOYAGENT_*`), so existing setups keep working.
+TripCorrect was called ReelTrip until November 2026 and Voyagent before that. The Python package and settings keep the original name (`voyagent`, `VOYAGENT_*`) so existing setups keep working, and the live address still carries the earlier name until the service is recreated under the new one.

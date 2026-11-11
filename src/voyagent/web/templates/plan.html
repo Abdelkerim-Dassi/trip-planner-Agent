@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set s = plan.review.summary if plan.review else none %}
-{% block title %}Trip plan: {{ plan.request.cities }} · {{ plan.request.travel_dates }} · ReelTrip{% endblock %}
-{% block description %}A day-by-day trip plan ({{ plan.request.cities }}) made and checked with ReelTrip{% if s %}: {{ s.confirmed + s.far }} of {{ s.places }} places found on the map{% if s.hours_checked %}, opening days checked for {{ s.hours_checked }} sights{% endif %}{% endif %}.{% endblock %}
+{% block title %}Trip plan: {{ plan.request.cities }} · {{ plan.request.travel_dates }} · TripCorrect{% endblock %}
+{% block description %}A day-by-day trip plan ({{ plan.request.cities }}) made and checked with TripCorrect{% if s %}: {{ s.confirmed + s.far }} of {{ s.places }} places found on the map{% if s.hours_checked %}, opening days checked for {{ s.hours_checked }} sights{% endif %}{% endif %}.{% endblock %}
 {% block social_meta %}
   <meta property="og:url" content="{{ public_url }}/p/{{ plan.id }}">
   <meta property="og:image" content="{{ public_url }}/p/{{ plan.id }}/og.png">

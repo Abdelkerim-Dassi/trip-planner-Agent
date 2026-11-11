@@ -1,6 +1,6 @@
 """Place verification with OpenStreetMap's Nominatim geocoder (free, no key).
 
-Every place ReelTrip shows on a map or passes to the agents is checked here
+Every place TripCorrect shows on a map or passes to the agents is checked here
 first, so invented or wrong-country places are dropped instead of shown.
 
 Nominatim's usage policy asks for at most one request per second, an
@@ -23,7 +23,7 @@ from voyagent import storage
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = os.environ.get(
-    "VOYAGENT_USER_AGENT", "ReelTrip/0.2 (open-source AI trip planner)"
+    "VOYAGENT_USER_AGENT", "TripCorrect/0.3 (open-source AI trip planner)"
 )
 #: Language for returned names/addresses (Nominatim otherwise uses local script).
 LANGUAGE = os.environ.get("VOYAGENT_LANGUAGE", "en")

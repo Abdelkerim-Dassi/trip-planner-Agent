@@ -31,7 +31,7 @@ def test_public_pages_render(client):
     assert client.head("/").status_code == 200
     assert "ChatGPT planned your trip" in client.get("/check/chatgpt").text
     assert "<title>Check a ChatGPT itinerary" in client.get("/check/chatgpt").text
-    assert "<title>ReelTrip · The reality check for trip plans</title>" in client.get("/").text
+    assert "<title>TripCorrect · The reality check for trip plans</title>" in client.get("/").text
     assert client.get("/check/nonsense").status_code == 404
     assert "Louvre Museum" in client.get("/closed-days").text
     assert "/check/gemini" in client.get("/sitemap.xml").text

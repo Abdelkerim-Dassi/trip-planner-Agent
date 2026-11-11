@@ -1,4 +1,4 @@
-"""CLI entry point for the ReelTrip.
+"""CLI entry point for the TripCorrect.
 
 Run with:  python -m voyagent   (or the ``voyagent`` console script)
 """

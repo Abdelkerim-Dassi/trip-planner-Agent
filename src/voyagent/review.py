@@ -1,7 +1,7 @@
 """Itinerary check: read any trip plan and test it against the real world.
 
 The plan can come from anywhere: ChatGPT, Gemini, a blog, a friend, or
-ReelTrip's own planner. One small model call lists the places it names, day by
+TripCorrect's own planner. One small model call lists the places it names, day by
 day. Everything after that is looked up, not generated:
 
 1. every place is searched on OpenStreetMap, near the town that day is set in;
@@ -640,7 +640,7 @@ def run(text: str, start: date | None = None, halal: bool = False, destination: 
 
 def check_plan(plan: str, city: str, travel_dates: str, halal: bool = False,
                on_progress: Progress | None = None) -> tuple[str, dict | None]:
-    """Check a plan ReelTrip just wrote, and move visits off closed days.
+    """Check a plan TripCorrect just wrote, and move visits off closed days.
 
     Returns the (possibly corrected) plan and its report. Never raises: if the
     check fails the plan comes back unchanged with no report.

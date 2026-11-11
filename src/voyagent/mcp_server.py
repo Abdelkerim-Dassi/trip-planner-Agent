@@ -1,9 +1,9 @@
-"""ReelTrip as an MCP server, so Claude, ChatGPT and other assistants can use it.
+"""TripCorrect as an MCP server, so Claude, ChatGPT and other assistants can use it.
 
 Inside an assistant the host model is already a capable planner; what it lacks
 is grounded, local data. So the main tools are fast lookups (TikTok trends,
 place verification, weather, prayer times, transfers). ``plan_trip`` runs the
-full seven-agent crew for users who want ReelTrip's own deep plan; it is slow.
+full seven-agent crew for users who want TripCorrect's own deep plan; it is slow.
 
 Run locally (stdio, e.g. for Claude Desktop):   python -m voyagent.mcp_server
 Run as a remote server (streamable HTTP):        python -m voyagent.mcp_server --http
@@ -21,15 +21,13 @@ from datetime import date as _date
 import anyio
 from mcp.server.mcpserver import Context, MCPServer
 
-from voyagent import limits, places, social, stats, storage, travel_info
+from voyagent import config, limits, places, social, stats, storage, travel_info
 from voyagent.jobs import PHASES, CheckJob, PlanJob
 
-PUBLIC_URL = os.environ.get("VOYAGENT_PUBLIC_URL") or os.environ.get(
-    "RENDER_EXTERNAL_URL", "https://reeltrip.onrender.com"
-)
+PUBLIC_URL = config.public_url()
 
 INSTRUCTIONS = """
-ReelTrip checks trip plans against the real world, with a focus on North Africa
+TripCorrect checks trip plans against the real world, with a focus on North Africa
 and the Middle East (halal-friendly, prayer-time aware) but working worldwide.
 
 When you have written or been given a day-by-day itinerary, call
@@ -49,10 +47,10 @@ Good workflow for a trip request:
 """.strip()
 
 mcp = MCPServer(
-    name="reeltrip",
-    title="ReelTrip trip planner",
+    name="tripcorrect",
+    title="TripCorrect trip planner",
     instructions=INSTRUCTIONS,
-    website_url="https://reeltrip.onrender.com",
+    website_url=config.public_url(),
 )
 
 
@@ -163,7 +161,7 @@ async def check_itinerary(
     report on a map.
     """
     if not limits.spend("mcp", limits.MCP_CALLS_BUDGET):
-        raise RuntimeError("ReelTrip's free daily capacity is used up. Please try again tomorrow.")
+        raise RuntimeError("TripCorrect's free daily capacity is used up. Please try again tomorrow.")
     try:
         start = _date.fromisoformat(start_date) if start_date else None
     except ValueError:
@@ -202,9 +200,9 @@ async def plan_trip(
     inspiration: str = "",
     ctx: Context | None = None,
 ) -> str:
-    """Run ReelTrip's seven-agent crew for a complete, verified itinerary.
+    """Run TripCorrect's seven-agent crew for a complete, verified itinerary.
 
-    Takes several minutes. Only use it when the user asks for ReelTrip's own plan.
+    Takes several minutes. Only use it when the user asks for TripCorrect's own plan.
 
     Args:
         origin: Where the traveller starts, e.g. "Paris".
@@ -238,11 +236,11 @@ async def plan_trip(
 # assistant can write the plan itself. Offered only where the operator opts
 # in (e.g. a private, local server).
 if os.environ.get("VOYAGENT_MCP_PLAN_TRIP", "").lower() in ("1", "true", "yes"):
-    mcp.tool(title="Full ReelTrip plan (slow)")(plan_trip)
+    mcp.tool(title="Full TripCorrect plan (slow)")(plan_trip)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run ReelTrip as an MCP server.")
+    parser = argparse.ArgumentParser(description="Run TripCorrect as an MCP server.")
     parser.add_argument("--http", action="store_true", help="serve streamable HTTP instead of stdio")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)

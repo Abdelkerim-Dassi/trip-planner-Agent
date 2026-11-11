@@ -1,4 +1,4 @@
-"""ReelTrip web app: JSON API, website pages and the MCP server in one process.
+"""TripCorrect web app: JSON API, website pages and the MCP server in one process.
 
 Run locally:   uvicorn voyagent.web.app:app --reload
                (or: python -m voyagent.web)
@@ -12,7 +12,7 @@ Routes:
 - ``/api/checks``       start an itinerary check; poll ``/api/checks/{id}``
 - ``/api/discover``     TikTok-inspired spots for a destination (seconds)
 - ``/api/plans``        start a plan (a minute or two); poll ``/api/plans/{id}``
-- ``/mcp``              the ReelTrip MCP server (streamable HTTP)
+- ``/mcp``              the TripCorrect MCP server (streamable HTTP)
 """
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ async def _lifespan(_app: FastAPI):
         yield
 
 
-app = FastAPI(title="ReelTrip", lifespan=_lifespan, docs_url="/api/docs", redoc_url=None)
+app = FastAPI(title="TripCorrect", lifespan=_lifespan, docs_url="/api/docs", redoc_url=None)
 app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
 
 
@@ -207,7 +207,7 @@ def _new_check(job: CheckJob) -> dict:
         _prune(_checks)
         active = sum(j.status in ("queued", "running") for j in _checks.values())
         if active >= MAX_ACTIVE_CHECKS:
-            raise HTTPException(429, "ReelTrip is checking other trips right now. Please try again in a minute.")
+            raise HTTPException(429, "TripCorrect is checking other trips right now. Please try again in a minute.")
         _checks[job.id] = job
     return job.start().to_dict()
 
@@ -307,7 +307,7 @@ def start_plan(req: PlanRequest, request: Request) -> dict:
         active = sum(j.status in ("queued", "running") for j in _plans.values())
         if active >= MAX_ACTIVE_PLANS:
             raise HTTPException(
-                429, "ReelTrip is planning other trips right now. Please try again in a few minutes."
+                429, "TripCorrect is planning other trips right now. Please try again in a few minutes."
             )
         job = PlanJob(
             req.origin.strip() or "not given",
@@ -521,11 +521,11 @@ def plan_slides_zip(job_id: str) -> Response:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as archive:
         for number, png in enumerate(_slides(job_id), 1):
-            archive.writestr(f"reeltrip-{job_id}-{number:02d}.png", png)
+            archive.writestr(f"tripcorrect-{job_id}-{number:02d}.png", png)
     return Response(
         buf.getvalue(),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="reeltrip-{job_id}-slides.zip"'},
+        headers={"Content-Disposition": f'attachment; filename="tripcorrect-{job_id}-slides.zip"'},
     )
 
 
@@ -535,7 +535,7 @@ def plan_calendar(request: Request, job_id: str) -> Response:
     return Response(
         exports.to_ics(data, f"{_public_url(request)}/p/{job_id}"),
         media_type="text/calendar; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="reeltrip-{job_id}.ics"'},
+        headers={"Content-Disposition": f'attachment; filename="tripcorrect-{job_id}.ics"'},
     )
 
 

@@ -1,10 +1,10 @@
-# ReelTrip launch kit
+# TripCorrect launch kit
 
-How to get ReelTrip its first users and its first paying clients, with no budget. Based on market research done in November 2026.
+How to get TripCorrect its first users and its first paying clients, with no budget. Based on market research done in November 2026.
 
 ## Positioning (one line, use it everywhere)
 
-> **Your AI planned your trip. ReelTrip checks it.** Paste any itinerary: each place is looked up on the map, and closed days, wrong cities and impossible days are flagged. Free, no account.
+> **Your AI planned your trip. TripCorrect checks it.** Paste any itinerary: each place is looked up on the map, and closed days, wrong cities and impossible days are flagged. Free, no account.
 
 ### What is new, and what is not
 
@@ -52,7 +52,7 @@ People post their itineraries for review every day. r/JapanTravel titles them "[
 
 How to do it without getting banned (r/travel bans AI content and self-promotion, r/solotravel and r/TravelHacks ban self-promotion):
 
-1. Run their itinerary through ReelTrip.
+1. Run their itinerary through TripCorrect.
 2. Read the report and keep only what you have confirmed yourself.
 3. Reply **as a person, in text**: "Day 3 has the Uffizi on a Monday, it's closed. Day 5 is about 300 km of driving between Siena, Pisa and Cinque Terre." Add one human tip.
 4. No link in the reply. Put the site in your profile. If someone asks how you checked, answer.
@@ -132,7 +132,7 @@ The research points to one buyer who has the problem every week and already pays
 
 ### The offer
 
-> **ReelTrip Pro for advisors.** Check every itinerary before it goes to a client. Unlimited checks, and a client-ready report page with your name and logo that says "checked on <date>". $9 a month, or $19 for a team of five. Ten checks free.
+> **TripCorrect Pro for advisors.** Check every itinerary before it goes to a client. Unlimited checks, and a client-ready report page with your name and logo that says "checked on <date>". $9 a month, or $19 for a team of five. Ten checks free.
 
 What exists today: the check, the one-click fix, and a dated report page that carries the advisor's name ("Travel advisor or creator? Put your name on the report" on the form). That is enough to run a pilot for free. What Pro needs (build it only after three advisors say yes): a logo, a private list of your reports, and a client-facing PDF. Until then, give the first three advisors the free version, watch what they send to clients, and ask what is missing.
 
@@ -145,7 +145,7 @@ What exists today: the check, the one-click fix, and a dated report page that ca
 
 ### Second buyer: creators who sell guides
 
-Guides sell for $8 to $39 on Rexby and (formerly) Thatch, which has been absorbed by Mindtrip. Offer a free "Checked by ReelTrip on <date>" link they can put on their guide. It costs you nothing, puts the name in front of their buyers, and tells you whether creators would pay for a badge later.
+Guides sell for $8 to $39 on Rexby and (formerly) Thatch, which has been absorbed by Mindtrip. Offer a free "Checked by TripCorrect on <date>" link they can put on their guide. It costs you nothing, puts the name in front of their buyers, and tells you whether creators would pay for a badge later.
 
 ### Taking payment without a company
 
@@ -155,12 +155,12 @@ Lemon Squeezy lists bank payouts to Tunisia, Morocco, Egypt and Algeria. Polar c
 
 | Platform | Handle to try | Notes |
 |---|---|---|
-| TikTok | `reeltrip.app` | Main channel for the first three weeks. |
-| Instagram | `reeltrip.app` | Repost the same videos as Reels. |
-| Reddit | `u/reeltrip_founder` | For replies; link in profile only. |
-| X | `reeltripapp` | Build-in-public notes, the study. |
+| TikTok | `tripcorrect` | Main channel for the first three weeks. |
+| Instagram | `tripcorrect` | Repost the same videos as Reels. |
+| Reddit | `u/tripcorrect_founder` | For replies; link in profile only. |
+| X | `tripcorrect` | Build-in-public notes, the study. |
 
-Check the name first: an iOS app called ReelTravel exists, and the name "ReelTrip" itself has not been searched for clashes.
+About the name: TripCorrect was chosen in November 2026, after ReelTrip turned out to be used by three other travel products (one with pending trademark filings). Its `.com` and `.app` were unregistered then and no product was found using it. Before printing it anywhere, search the exact name on the USPTO, EUIPO, INPI and WIPO trademark databases, and claim the handles above.
 
 **English**
 > Your AI planned your trip. We check it ✅

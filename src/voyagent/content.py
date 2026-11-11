@@ -10,12 +10,13 @@ from __future__ import annotations
 import logging
 from textwrap import dedent
 
+from voyagent import config
 from voyagent.hours import chosen_city
 from voyagent.llm import complete_json
 
 log = logging.getLogger(__name__)
 
-PUBLIC_URL = "reeltrip.onrender.com"
+PUBLIC_URL = config.public_host()
 
 
 def social_post(plan: dict) -> dict:
@@ -36,7 +37,7 @@ def social_post(plan: dict) -> dict:
         counts = ""
     prompt = dedent(
         f"""
-        You write short social posts for ReelTrip, a free tool that checks trip
+        You write short social posts for TripCorrect, a free tool that checks trip
         plans against the real world (is each place on the map, is it open on
         the day you go) and builds plans from places people save on TikTok.
 

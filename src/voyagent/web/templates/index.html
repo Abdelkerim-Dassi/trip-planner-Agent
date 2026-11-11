@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}{% if assistant %}Check a {{ assistant }} itinerary: closed days, wrong cities, places that don't exist · ReelTrip{% else %}{{ super() }}{% endif %}{% endblock %}
-{% block description %}{% if assistant %}Paste the trip itinerary {{ assistant }} wrote. ReelTrip looks up each place on the map and flags closed days, wrong cities, long drives and places with no trace, then fixes it in one click. Free, no account.{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block title %}{% if assistant %}Check a {{ assistant }} itinerary: closed days, wrong cities, places that don't exist · TripCorrect{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block description %}{% if assistant %}Paste the trip itinerary {{ assistant }} wrote. TripCorrect looks up each place on the map and flags closed days, wrong cities, long drives and places with no trace, then fixes it in one click. Free, no account.{% else %}{{ super() }}{% endif %}{% endblock %}
 {% block social_meta %}
 {% if assistant %}
   <meta property="og:url" content="{{ public_url }}/check/{{ assistant_key }}">
@@ -12,7 +12,7 @@
 {% block content %}
 <header class="hero">
   <span class="badge">✅ The reality check for trip plans</span>
-  <h1>ReelTrip</h1>
+  <h1>TripCorrect</h1>
   <p>{{ assistant or "Your AI" }} planned your trip. We check it against the real world: each place looked up
      on the map, with closed days, wrong cities and impossible days flagged. Free, no account.</p>
 </header>
@@ -173,7 +173,7 @@
   </div>
   {% if support_url %}
   <aside class="support card">
-    <strong>Was this plan useful?</strong> ReelTrip is free and open source.
+    <strong>Was this plan useful?</strong> TripCorrect is free and open source.
     If it saved you a few hours, you can <a href="{{ support_url }}" target="_blank" rel="noopener">buy the crew a coffee ☕</a>.
   </aside>
   {% endif %}

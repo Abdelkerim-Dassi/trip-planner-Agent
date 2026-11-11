@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -19,6 +20,30 @@ load_dotenv()
 # API key ("?key=..."). Keep those lines out of the logs, here and on the host.
 for _noisy in ("httpx", "httpcore", "LiteLLM", "litellm"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
+
+# --- Name and address ------------------------------------------------------------
+
+#: The product's name.
+BRAND = "TripCorrect"
+#: Used only when the host doesn't say where it is (local runs). It is the
+#: first deployment's address, which predates the current name.
+_DEFAULT_HOST = "reeltrip.onrender.com"
+
+
+def public_url() -> str:
+    """The site's public address: VOYAGENT_PUBLIC_URL, else what Render
+    reports for the service, else the default. No trailing slash."""
+    url = os.environ.get("VOYAGENT_PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_URL")
+    if not url:
+        host = os.environ.get("VOYAGENT_PUBLIC_HOST") or os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+        url = f"https://{host or _DEFAULT_HOST}"
+    return url.rstrip("/")
+
+
+def public_host() -> str:
+    """The address as printed on share images and in captions (no scheme)."""
+    return os.environ.get("VOYAGENT_PUBLIC_HOST") or urlparse(public_url()).netloc or _DEFAULT_HOST
+
 
 # --- Provider & model configuration --------------------------------------------
 

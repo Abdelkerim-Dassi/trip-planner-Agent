@@ -4,7 +4,7 @@
   WhatsApp, Instagram DMs, X, Slack...
 - :func:`slides`: a 1080x1350 carousel (cover, one slide per day, a map of
   the checked places, a closing slide) ready to post on Instagram or as a
-  TikTok photo post. Every slide carries the ReelTrip address, so each shared
+  TikTok photo post. Every slide carries the TripCorrect address, so each shared
   plan brings the next traveller.
 
 Drawn with Pillow; the map slide stitches OpenStreetMap tiles (low volume,
@@ -21,11 +21,12 @@ from functools import lru_cache
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
+from voyagent import config
 from voyagent.hours import chosen_city
 from voyagent.places import USER_AGENT
 from voyagent.plan_text import split_days, strip_markdown
 
-PUBLIC_HOST = os.environ.get("VOYAGENT_PUBLIC_HOST", "reeltrip.onrender.com")
+PUBLIC_HOST = config.public_host()
 TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 SLIDE_SIZE = (1080, 1350)
 OG_SIZE = (1200, 630)
@@ -146,7 +147,7 @@ def og_card(plan: dict) -> bytes:
     days = _days(plan)
     image = _gradient(OG_SIZE)
     draw = ImageDraw.Draw(image)
-    draw.text((70, 60), "ReelTrip", font=_font(34, "bold"), fill="white")
+    draw.text((70, 60), "TripCorrect", font=_font(34, "bold"), fill="white")
     draw.text((70, 104), "Trip plans, checked against the real world", font=_font(24), fill=(255, 235, 245))
     y = _text_block(draw, (70, 175), _title(plan), _font(92, "bold"), "white", 1060, 2, 1.1)
     sub = f"{len(days)}-day checked plan" if days else "Checked trip plan"
@@ -182,7 +183,7 @@ def report_card(report: dict, prepared_by: str = "") -> bytes:
     summary = report.get("summary", {})
     image = _gradient(OG_SIZE)
     draw = ImageDraw.Draw(image)
-    draw.text((70, 60), "ReelTrip", font=_font(34, "bold"), fill="white")
+    draw.text((70, 60), "TripCorrect", font=_font(34, "bold"), fill="white")
     label = f"Itinerary check · prepared by {prepared_by}" if prepared_by else "Itinerary check"
     draw.text((70, 104), label[:80], font=_font(24), fill=(255, 235, 245))
     title = report.get("destination") or "Trip plan"
@@ -202,7 +203,7 @@ def home_card() -> bytes:
     """Link preview for the home page."""
     image = _gradient(OG_SIZE)
     draw = ImageDraw.Draw(image)
-    draw.text((70, 60), "ReelTrip", font=_font(34, "bold"), fill="white")
+    draw.text((70, 60), "TripCorrect", font=_font(34, "bold"), fill="white")
     y = _text_block(
         draw, (70, 160), "Your AI planned your trip. We check it.", _font(80, "bold"), "white", 1060, 3, 1.1
     )
@@ -224,7 +225,7 @@ def _cover(plan: dict, count: int) -> Image.Image:
     image = _gradient(SLIDE_SIZE)
     draw = ImageDraw.Draw(image)
     w, _ = SLIDE_SIZE
-    draw.text((90, 110), "ReelTrip", font=_font(46, "bold"), fill="white")
+    draw.text((90, 110), "TripCorrect", font=_font(46, "bold"), fill="white")
     y = _text_block(draw, (90, 420), _title(plan), _font(130, "bold"), "white", w - 180, 3, 1.05)
     days = _days(plan)
     sub = f"{len(days)} days, planned and checked" if days else "A trip, planned and checked"
@@ -364,7 +365,7 @@ def _closing() -> Image.Image:
     y = _text_block(draw, (90, 380), "Did an AI plan your trip?", _font(84, "bold"), "white", w - 180, 2, 1.1)
     y = _text_block(
         draw, (90, y + 30),
-        "Paste the plan. ReelTrip looks up each place on the map and flags closed days, "
+        "Paste the plan. TripCorrect looks up each place on the map and flags closed days, "
         "wrong cities and days that don't fit.",
         _font(46), "white", w - 180, 5,
     )

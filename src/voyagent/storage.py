@@ -24,6 +24,8 @@ log = logging.getLogger(__name__)
 
 DATA_DIR = Path(os.environ.get("VOYAGENT_DATA_DIR", "data"))
 REQUEST_TIMEOUT_SECONDS = 10
+# Redis keys start with the product's earlier name. Renaming the prefix would
+# orphan every stored report and plan link, so it stays.
 _KEY = re.compile(r"^[0-9a-z_-]{1,64}$")
 _COUNTER_KEY = re.compile(r"^[0-9A-Za-z_.:-]{1,120}$")
 

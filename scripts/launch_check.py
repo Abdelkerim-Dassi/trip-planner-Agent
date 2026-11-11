@@ -1,4 +1,4 @@
-"""End-to-end launch check for a running ReelTrip deployment.
+"""End-to-end launch check for a running TripCorrect deployment.
 
 Exercises every public surface the way a visitor (or an AI assistant) would:
 pages, input validation, TikTok discovery, pasted links, plan jobs, share
@@ -47,7 +47,7 @@ def run_pages(base: str) -> None:
     r = requests.get(base + "/", timeout=TIMEOUT)
     html = r.text
     check("home page loads", r.status_code == 200, f"{time.time() - t0:.2f}s, {len(html) // 1024} KB")
-    check("home page is branded ReelTrip", "<title>ReelTrip" in html)
+    check("home page is branded TripCorrect", "<title>TripCorrect" in html)
     check("home page has social preview tags", 'property="og:title"' in html)
     check("home page has phone viewport", 'name="viewport"' in html)
     for asset in ("/static/app.js", "/static/style.css"):
@@ -197,7 +197,7 @@ def run_mcp(base: str) -> None:
         async with streamable_http_client(base + "/mcp") as streams:
             async with ClientSession(streams[0], streams[1]) as s:
                 init = await s.initialize()
-                check("MCP server identifies as reeltrip", init.server_info.name == "reeltrip", init.server_info.name)
+                check("MCP server identifies as tripcorrect", init.server_info.name == "tripcorrect", init.server_info.name)
                 tools = [t.name for t in (await s.list_tools()).tools]
                 check("MCP lists its 7 tools", len(tools) == 7, ", ".join(tools))
                 check("MCP offers check_itinerary and not the slow planner",

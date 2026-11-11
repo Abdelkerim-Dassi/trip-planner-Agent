@@ -34,10 +34,10 @@ def to_ics(plan: dict, url: str = "") -> str:
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//ReelTrip//Trip plan//EN",
+        "PRODID:-//TripCorrect//Trip plan//EN",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
-        f"X-WR-CALNAME:{_escape('ReelTrip: ' + req.get('cities', 'trip'))}",
+        f"X-WR-CALNAME:{_escape('TripCorrect: ' + req.get('cities', 'trip'))}",
     ]
     for day in days:
         schedule = "\n".join(day.items) if day.items else strip_markdown(day.text)
@@ -45,7 +45,7 @@ def to_ics(plan: dict, url: str = "") -> str:
             schedule += f"\n\nFull plan: {url}"
         lines += [
             "BEGIN:VEVENT",
-            f"UID:{plan.get('id', 'plan')}-day{day.number}@reeltrip",
+            f"UID:{plan.get('id', 'plan')}-day{day.number}@tripcorrect",
             f"DTSTAMP:{stamp}",
             f"DTSTART;VALUE=DATE:{day.date:%Y%m%d}",
             f"DTEND;VALUE=DATE:{day.date + timedelta(days=1):%Y%m%d}",

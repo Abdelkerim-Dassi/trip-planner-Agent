@@ -205,6 +205,17 @@ times, a corrected plan rather than only a report, and a landing page per assist
   the free instance awake.
 - 71 offline tests; `scripts/launch_check.py` now also runs a fix.
 
+### 2026-11-11 — Renamed to TripCorrect
+
+The name ReelTrip turned out to be used by three other travel products: an active business at
+reeltrip.com with pending trademark applications for travel services, an Android app doing the
+original reels-to-trip idea, and a third at waitlist stage. It also described the old idea, not the
+checker. TripCorrect reads the same in English and French and was unused when chosen. The brand
+is renamed across the site, share images, MCP server (`tripcorrect`) and documents. Unchanged on
+purpose: the `voyagent` package and `VOYAGENT_*` settings, the `reeltrip:` storage key prefix (so
+stored reports and plans keep working), and the live address, which is now read from the host
+(`config.public_url()`) so a service recreated under the new name needs no code change.
+
 ## Remaining suggestions (not yet done)
 
 - More automated tests: the web API routes, the TikTok discovery pipeline with mocked HTTP,

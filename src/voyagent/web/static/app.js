@@ -1,4 +1,4 @@
-// ReelTrip home page. Two flows share it:
+// TripCorrect home page. Two flows share it:
 //  - Check: paste any itinerary, follow the check, read the report.
 //  - Plan:  discover TikTok spots, keep or skip them, get a checked plan.
 (() => {
@@ -411,7 +411,7 @@ Day 5 – Departure: Last-minute shopping at Souk El Attarine, then transfer to 
   $("download").addEventListener("click", () => {
     const blob = new Blob([planText], { type: "text/plain" });
     const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(blob), download: "reeltrip-plan.txt",
+      href: URL.createObjectURL(blob), download: "tripcorrect-plan.txt",
     });
     a.click();
     URL.revokeObjectURL(a.href);

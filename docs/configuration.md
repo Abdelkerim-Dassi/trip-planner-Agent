@@ -121,10 +121,10 @@ See [Setup](setup.md) for getting keys. The code reads:
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis (free, no card) via REST, so plans, checked hours (30 days) and captions survive restarts (`storage.py`) | unset: local files only |
 | `VOYAGENT_DATA_DIR` | local copy of stored records (`<dir>/plans/`, `<dir>/hours/`, `<dir>/social/`, `<dir>/halal/`) | `data` |
 | `VOYAGENT_PUBLIC_URL` | site address in link previews (`og:image`) and calendar files; Render's `RENDER_EXTERNAL_URL` is used when unset | the request's address |
-| `VOYAGENT_PUBLIC_HOST` | address printed on share images | `reeltrip.onrender.com` |
+| `VOYAGENT_PUBLIC_HOST` | address printed on share images | the host Render reports, else `reeltrip.onrender.com` |
 | `VOYAGENT_FONT` / `VOYAGENT_FONT_BOLD` | TrueType fonts for share images (the Docker image uses DejaVu) | DejaVu, then Segoe UI / Arial |
 | `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts, comma-separated (Render's `RENDER_EXTERNAL_HOSTNAME` and Hugging Face's `SPACE_HOST` are added automatically) | unset |
 | `VOYAGENT_LANGUAGE` | language for place names from OpenStreetMap | `en` |
-| `VOYAGENT_USER_AGENT` | `User-Agent` sent to Nominatim (its policy asks for an identifying one) | `ReelTrip/0.2 (open-source AI trip planner)` |
+| `VOYAGENT_USER_AGENT` | `User-Agent` sent to Nominatim (its policy asks for an identifying one) | `TripCorrect/0.2 (open-source AI trip planner)` |
 | `HOST` / `PORT` | bind address for `python -m voyagent.web` (the `Dockerfile` sets `0.0.0.0` / `7860`) | `127.0.0.1` / `8000` |
 | `RENDER_EXTERNAL_HOSTNAME` / `SPACE_HOST` | set by Render / Hugging Face Spaces; allowed on `/mcp` automatically | — |

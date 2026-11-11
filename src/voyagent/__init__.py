@@ -1,3 +1,3 @@
-"""ReelTrip — a multi-agent AI travel planner built on CrewAI."""
+"""TripCorrect — a multi-agent AI travel planner built on CrewAI."""
 
 __version__ = "0.1.0"

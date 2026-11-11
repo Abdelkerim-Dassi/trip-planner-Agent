@@ -1,4 +1,4 @@
-# ReelTrip — Documentation
+# TripCorrect — Documentation
 
 A multi-agent AI travel planner built on [CrewAI](https://www.crewai.com/). You give it an
 origin city, candidate destinations, a date range, and your interests; seven specialized
