@@ -1,0 +1,27 @@
+# Checks that the deployed site answers, every ten minutes.
+#
+# It fails (and GitHub emails the repository owner) when the site is down, and
+# as a side effect the regular request keeps Render's free instance from going
+# to sleep, so a first-time visitor doesn't wait a minute for it to wake.
+# One always-on free service fits inside Render's 750 free hours a month.
+#
+# GitHub pauses scheduled workflows after 60 days without a commit; re-enable
+# it from the Actions tab if that happens. To stop it, delete this file.
+name: Health check
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Site answers
+        run: |
+          curl --fail --silent --show-error --max-time 150 --retry 2 --retry-delay 20 \
+            https://reeltrip.onrender.com/healthz

@@ -184,6 +184,27 @@ After the original audit, the project was extended and rebranded:
   finished jobs pruned from memory, one polling loop per page.
 - **Tests.** 61 offline tests (`tests/`); `scripts/launch_check.py` covers the new surfaces.
 
+### 2026-11-11 — One-click fix, road times, and what the rivals taught us
+
+A read of the closest rivals' live pages (TripSapien, SuperTravel, Journey Planner, Wanderlog)
+showed what they have that ReelTrip lacked: public-holiday context, book-ahead flags, real travel
+times, a corrected plan rather than only a report, and a landing page per assistant. Added:
+
+- **Fix it for me** (`review.rewrite`, `POST /api/checks/{id}/fix`): one model call rewrites the
+  itinerary around the findings, the rewrite is checked again, and the page shows before and after.
+  The rewrite never names a replacement restaurant or hotel.
+- **Road times** (`routes.py`, OSRM): driving time and road distance per day, used for the
+  long-day finding instead of straight-line distance when the routing server answers.
+- **Public holidays** (`holidays.py`, Nager.Date) and **book-ahead notes** for sights known for
+  timed tickets.
+- **Sourced closing days** (`closed_days.py`): the best-known traps are caught from a list read
+  from official pages, independent of search and model; published at `/closed-days`.
+- **Google Maps links** for each stop and each day's route; optional **"prepared by"** name on a
+  report; **thumbs up/down**; **usage counts** at `/stats?key=...` (`stats.py`, no cookies).
+- **`/check/<assistant>`** landing pages; a scheduled **health check** workflow that also keeps
+  the free instance awake.
+- 71 offline tests; `scripts/launch_check.py` now also runs a fix.
+
 ## Remaining suggestions (not yet done)
 
 - More automated tests: the web API routes, the TikTok discovery pipeline with mocked HTTP,
@@ -191,6 +212,10 @@ After the original audit, the project was extended and rebranded:
 - Slim the hosted image: quick mode still imports its prompt rules from `tasks.py`, which pulls
   in `crewai`. Moving the rules to a light module would cut memory and start-up time.
 - Run the Tavily search path against the live API once a key exists.
+- Interface in French and Arabic (only the plan text is translated today); findings are
+  written in English in `review.py`.
+- Time-of-day conflicts (arriving near closing time), walking and transit times, PDF or
+  screenshot upload, reordering a day to save travel: rivals have these.
 - Expose the grounded lookups (`travel_info.typical_weather`, `places.verify_place`) to the
   crew's agents as CrewAI tools; today only the MCP server uses them.
 - Reconcile `pyproject.toml` with `requirements.txt` (it still lists the now-unused `unstructured`

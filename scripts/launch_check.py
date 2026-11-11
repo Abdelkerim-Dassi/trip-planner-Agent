@@ -60,6 +60,13 @@ def run_pages(base: str) -> None:
         r = requests.get(base + path, timeout=TIMEOUT)
         check(f"preview image {path} is a PNG", r.status_code == 200 and r.content[1:4] == b"PNG", str(r.status_code))
     check("privacy page loads", requests.get(base + "/privacy", timeout=TIMEOUT).status_code == 200)
+    r = requests.get(base + "/check/chatgpt", timeout=TIMEOUT)
+    check("assistant landing page renders", r.status_code == 200 and "Check a ChatGPT itinerary" in r.text)
+    r = requests.get(base + "/closed-days", timeout=TIMEOUT)
+    check("closed-days page lists sourced sights", r.status_code == 200 and "Official page" in r.text)
+    check("usage page is hidden without its key", requests.get(base + "/stats", timeout=TIMEOUT).status_code == 404)
+    r = post(base, "/api/feedback", {"vote": "up"})
+    check("feedback is accepted", r.status_code == 200, str(r.status_code))
     r = requests.get(base + "/robots.txt", timeout=TIMEOUT)
     check("robots.txt keeps shared plans out of search", r.status_code == 200 and "Disallow: /p/" in r.text)
 
@@ -157,6 +164,23 @@ def run_check(base: str) -> None:
     check("most places are found on the map", summary["confirmed"] >= summary["places"] - 2,
           f"{summary['confirmed']} of {summary['places']}")
     check("report offers a fix list", "Louvre" in report["fix_prompt"])
+    r = post(base, f"/api/checks/{job_id}/fix", {"text": PARIS})
+    if check("fix starts", r.status_code == 202, str(r.status_code)):
+        fix_id, t0 = r.json()["id"], time.time()
+        while time.time() - t0 < 300:
+            fixed = requests.get(f"{base}/api/checks/{fix_id}", timeout=TIMEOUT).json()
+            if fixed["status"] in ("done", "error"):
+                break
+            time.sleep(3)
+        ok = fixed["status"] == "done"
+        check("fix finishes with a rewritten itinerary", ok and len(fixed["fixed_text"]) > 100,
+              f"{fixed['status']} in {time.time() - t0:.0f}s {fixed.get('error', '')[:100]}")
+        if ok:
+            after = fixed["report"]["summary"]["problems"]
+            check("rewrite has fewer problems than the original", after < summary["problems"],
+                  f"{summary['problems']} -> {after}")
+            check("the Louvre is no longer on its closed day",
+                  not any(i["kind"] == "closed" and "Louvre" in i["stop"] for i in fixed["report"]["issues"]))
     r = requests.get(f"{base}/c/{job_id}", timeout=TIMEOUT)
     check("shared report page renders", r.status_code == 200 and "noindex" in r.text, str(r.status_code))
 

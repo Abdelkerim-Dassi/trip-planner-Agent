@@ -17,6 +17,13 @@
     return Number.isNaN(d.getTime()) ? isoDate : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
 
+  // 160 -> "2 h 40"
+  const duration = (minutes) => {
+    const h = Math.floor(minutes / 60);
+    const m = String(minutes % 60).padStart(2, "0");
+    return h ? `${h} h ${m}` : `${minutes} min`;
+  };
+
   const STATUS = {
     found: ["ok", "📍 On the map"],
     far: ["warn", "↔ Far from this day"],
@@ -63,7 +70,9 @@
     const far = stop.status === "far" ? ` <span class="muted small">~${esc(stop.distance_km)} km away${stop.where ? `, in ${esc(stop.where)}` : ""}</span>` : "";
     const moved = stop.moved_from != null ? ` <span class="pill moved">↪ Moved from Day ${esc(stop.moved_from)}</span>` : "";
     const hours = hoursLine(stop);
-    return `<li><span class="stop-name">${esc(stop.name)}</span> ${badge}${moved}${far}
+    const query = stop.lat != null ? `${stop.lat},${stop.lon}` : `${stop.name} ${stop.city || ""}`.trim();
+    const maps = `<a class="maps" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}" target="_blank" rel="noopener">Google Maps ↗</a>`;
+    return `<li><span class="stop-name">${esc(stop.name)}</span> ${badge}${moved}${far} ${maps}
       ${hours ? `<div class="small">${hours}</div>` : ""}</li>`;
   }
 
@@ -72,8 +81,16 @@
       const stops = report.stops.filter((s) => s.day === day.number);
       if (!stops.length) return "";
       const when = day.weekday ? ` · ${esc(day.weekday)} ${esc(niceDate(day.date))}` : "";
+      const road = day.drive_minutes
+        ? `<span class="pill ${day.drive_minutes >= 120 ? "warn" : "unknown"}">🚗 ${esc(duration(day.drive_minutes))} by road · ${esc(day.drive_km)} km</span>` : "";
+      // The day's route in Google Maps, through the stops that were located.
+      const placed = stops.filter((s) => s.lat != null && s.status !== "far").slice(0, 10);
+      const point = (s) => `${s.lat},${s.lon}`;
+      const route = placed.length >= 2
+        ? `<a class="maps" href="https://www.google.com/maps/dir/?api=1&origin=${point(placed[0])}&destination=${point(placed[placed.length - 1])}${placed.length > 2 ? `&waypoints=${placed.slice(1, -1).map(point).join("%7C")}` : ""}" target="_blank" rel="noopener">Open this day's route ↗</a>` : "";
+      const holiday = day.holiday ? `<span class="pill warn">Public holiday: ${esc(day.holiday)}</span>` : "";
       return `<div class="day-block">
-        <h3><span class="dot" style="background:${dayColour(day.number)}"></span>Day ${esc(day.number)}${when}${day.city ? ` · ${esc(day.city)}` : ""}</h3>
+        <h3><span class="dot" style="background:${dayColour(day.number)}"></span>Day ${esc(day.number)}${when}${day.city ? ` · ${esc(day.city)}` : ""} ${holiday} ${road} ${route}</h3>
         <ul class="stops">${stops.map(stopRow).join("")}</ul></div>`;
     }).join("");
   }
@@ -120,8 +137,13 @@
     const s = report.summary;
     const [cls, headline] = verdict(s);
     const notes = (report.notes || []).map((n) => `<p class="muted small">${esc(n)}</p>`).join("");
+    const b = options.before;
+    const before = b
+      ? `<p class="before-after">Before: <s>${plural(b.problems, "problem")}, ${b.warnings} to double-check</s>
+         → now: <strong>${plural(s.problems, "problem")}, ${s.warnings} to double-check</strong></p>` : "";
     el.innerHTML = `
       ${options.title ? `<h2>${esc(options.title)}</h2>` : ""}
+      ${before}
       <div class="verdict ${cls}"><strong>${headline}</strong><div class="chips">${chips(s)}</div></div>
       <div class="map report-map"></div>
       ${issueList(report.issues || [])}
@@ -129,9 +151,21 @@
       ${notes}
       <p class="muted small">Places are looked up on OpenStreetMap, and opening days on OpenStreetMap or a published page.
       Distances are straight lines. This check can't see strikes, renovations, sold-out tickets or prices, and hours change:
-      confirm what matters before you go.</p>`;
+      confirm what matters before you go.</p>
+      <p class="feedback small">Was this check right?
+        <button type="button" data-vote="up">👍 Yes</button>
+        <button type="button" data-vote="down">👎 Something's off</button></p>`;
     el.hidden = false;
     drawMap(report, el.querySelector(".report-map"));
+    el.querySelectorAll(".feedback button").forEach((button) => button.addEventListener("click", () => {
+      fetch("/api/feedback", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vote: button.dataset.vote }),
+      }).catch(() => {});
+      el.querySelector(".feedback").textContent = button.dataset.vote === "up"
+        ? "Thanks. Glad it helped."
+        : "Thanks. If a finding is wrong, use “Report a problem” below so we can fix it.";
+    }));
   };
 
   // Copy `text`, show "Copied" on the button, and fall back to a prompt.

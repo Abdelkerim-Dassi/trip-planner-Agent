@@ -172,6 +172,10 @@ class CheckJob:
     start_date: date | None = None
     halal: bool = False
     destination: str = ""
+    prepared_by: str = ""  # an advisor's or agency's name, shown on the report
+    #: The earlier report whose problems this job fixes before checking again.
+    fix_of: dict | None = None
+    fixed_text: str = ""  # the rewritten itinerary (ours, so it is kept)
     id: str = field(default_factory=_new_id)
     status: str = "queued"  # queued | running | done | error
     done: int = 0
@@ -192,6 +196,9 @@ class CheckJob:
             "report": self.report,
             "error": self.error,
             "created": self.created,
+            "prepared_by": self.prepared_by,
+            "fixed_text": self.fixed_text,
+            "before": (self.fix_of or {}).get("summary"),
         }
 
     def run(self) -> None:
@@ -202,6 +209,9 @@ class CheckJob:
 
         self.status = "running"
         try:
+            if self.fix_of:
+                self.label = "Rewriting the itinerary"
+                self.fixed_text = self.text = review.rewrite(self.text, self.fix_of)
             self.report = review.run(
                 self.text, self.start_date, self.halal, self.destination, on_progress
             )

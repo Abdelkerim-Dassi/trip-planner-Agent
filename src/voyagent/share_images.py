@@ -177,13 +177,14 @@ def _verdict(summary: dict) -> str:
     return "No problems found"
 
 
-def report_card(report: dict) -> bytes:
+def report_card(report: dict, prepared_by: str = "") -> bytes:
     """Link preview for a shared itinerary check: the verdict in one glance."""
     summary = report.get("summary", {})
     image = _gradient(OG_SIZE)
     draw = ImageDraw.Draw(image)
     draw.text((70, 60), "ReelTrip", font=_font(34, "bold"), fill="white")
-    draw.text((70, 104), "Itinerary check", font=_font(24), fill=(255, 235, 245))
+    label = f"Itinerary check · prepared by {prepared_by}" if prepared_by else "Itinerary check"
+    draw.text((70, 104), label[:80], font=_font(24), fill=(255, 235, 245))
     title = report.get("destination") or "Trip plan"
     y = _text_block(draw, (70, 170), title, _font(76, "bold"), "white", 1060, 2, 1.1)
     y = _text_block(draw, (70, y + 14), _verdict(summary), _font(58, "bold"), "white", 1060, 1)

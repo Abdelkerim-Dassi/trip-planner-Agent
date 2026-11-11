@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Famous sights and the day they're closed · ReelTrip{% endblock %}
+{% block description %}The Louvre is closed on Tuesdays, the Uffizi on Mondays, the Taj Mahal on Fridays. A sourced list of famous sights with a weekly closing day, and a free check for your own itinerary.{% endblock %}
+{% block social_meta %}
+  <meta property="og:url" content="{{ public_url }}/closed-days">
+  <meta property="og:image" content="{{ public_url }}/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="{{ public_url }}/closed-days">
+{% endblock %}
+{% block content %}
+<header class="hero hero-small">
+  <span class="badge">📅 Closed-day traps</span>
+  <h1>Famous sights and the day they're closed</h1>
+  <p>Trip plans, human or AI, keep putting these on the wrong day. Each line links to the sight's own page.</p>
+</header>
+<article class="card plan">
+  <table>
+    <thead><tr><th>Sight</th><th>City</th><th>Closed</th><th>Source</th></tr></thead>
+    <tbody>
+      {% for sight in places %}
+      <tr><td><strong>{{ sight.name }}</strong></td><td>{{ sight.city }}</td><td>{{ sight.closed }}</td>
+          <td><a href="{{ sight.source }}" target="_blank" rel="noopener">Official page</a></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted small">Read from each official page in {{ checked_on }}. Holidays, seasons and renovations change
+  opening days, so follow the source before you go. Know one that should be here, or one that's wrong?
+  <a href="{{ contact_url }}" target="_blank" rel="noopener">Tell us</a>.</p>
+  <h2>Is your itinerary hitting one of these?</h2>
+  <p>Paste your plan and ReelTrip matches each sight to its closing day for your dates, wherever you're going,
+  and also looks for places that don't exist, places in the wrong city, and days with too much driving.</p>
+</article>
+<div class="actions">
+  <a class="button primary" href="/">✅ Check my itinerary</a>
+  <a class="button" href="/c/example">See an example report</a>
+</div>
+{% endblock %}

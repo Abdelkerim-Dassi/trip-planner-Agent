@@ -51,6 +51,7 @@
   const checkForm = $("check-form");
   let checkId = null;
   let report = null;
+  let checkedText = "";  // what the current report is about (the paste, or our rewrite)
 
   const EXAMPLE = `Here's your 5-day Tunisia itinerary!
 
@@ -86,22 +87,35 @@ Day 5 – Departure: Last-minute shopping at Souk El Attarine, then transfer to 
     show($("check-result"), false);
     const text = checkForm.text.value.trim();
     if (text.length < 40) return checkFail("Paste the itinerary itself: the day-by-day plan with its places.");
+    checkedText = text;
+    startCheck("Reading the itinerary…", () => api("/api/checks", {
+      text,
+      start: checkForm.start.value || null,
+      halal: checkForm.halal.checked,
+      prepared_by: checkForm.prepared_by.value,
+    }));
+  });
+
+  async function startCheck(label, request) {
+    show($("check-error"), false);
+    show($("check-result"), false);
     $("check-go").disabled = true;
-    $("check-label").textContent = "Reading the itinerary…";
+    $("check-label").textContent = label;
     $("check-bar").style.width = "4%";
     show($("check-progress"));
     $("check-progress").scrollIntoView({ behavior: "smooth", block: "start" });
     try {
-      const job = await api("/api/checks", {
-        text,
-        start: checkForm.start.value || null,
-        halal: checkForm.halal.checked,
-      });
-      checkId = job.id;
+      checkId = (await request()).id;
       pollCheck();
     } catch (err) {
       checkFail(err.message);
     }
+  }
+
+  // Rewrite the itinerary so the findings are fixed, then check the rewrite.
+  $("fix").addEventListener("click", () => {
+    const from = checkId;
+    startCheck("Rewriting your itinerary…", () => api(`/api/checks/${from}/fix`, { text: checkedText }));
   });
 
   async function pollCheck() {
@@ -112,7 +126,7 @@ Day 5 – Departure: Last-minute shopping at Souk El Attarine, then transfer to 
       return schedule(pollCheck, 4000); // transient network blip: keep trying
     }
     if (job.status === "error") return checkFail(job.error);
-    if (job.status === "done") return showReport(job.report);
+    if (job.status === "done") return showReport(job);
     if (job.total) {
       $("check-label").textContent = job.done >= job.total
         ? "Checking opening days…"
@@ -122,10 +136,18 @@ Day 5 – Departure: Last-minute shopping at Souk El Attarine, then transfer to 
     schedule(pollCheck, 1500);
   }
 
-  function showReport(data) {
-    report = data;
+  function showReport(job) {
+    report = job.report;
     show($("check-progress"), false);
-    window.renderReport(report, $("report"));
+    const fixed = $("fixed");
+    show(fixed, Boolean(job.fixed_text));
+    if (job.fixed_text) {
+      checkedText = job.fixed_text;
+      $("fixed-text").innerHTML = DOMPurify.sanitize(marked.parse(job.fixed_text));
+    }
+    window.renderReport(report, $("report"), { before: job.before });
+    show($("fix"), Boolean(report.fix_prompt));
+    $("fix").textContent = job.fixed_text ? "🛠 Fix what's left" : "🛠 Fix it for me";
     show($("copy-fix"), Boolean(report.fix_prompt));
     $("open-report").href = `/c/${checkId}`;
     show($("check-result"));
@@ -135,6 +157,7 @@ Day 5 – Departure: Last-minute shopping at Souk El Attarine, then transfer to 
 
   $("copy-report").addEventListener("click", (e) => window.copyText(`${location.origin}/c/${checkId}`, e.currentTarget, "✓ Link copied"));
   $("copy-fix").addEventListener("click", (e) => window.copyText(report.fix_prompt, e.currentTarget));
+  $("copy-fixed").addEventListener("click", (e) => window.copyText(checkedText, e.currentTarget));
   $("check-again").addEventListener("click", () => {
     show($("check-result"), false);
     window.scrollTo({ top: 0, behavior: "smooth" });

@@ -18,9 +18,17 @@
 <header class="hero hero-small">
   <span class="badge">✅ {{ "Example itinerary check" if is_example else "Itinerary check" }}</span>
   <h1>{{ report.destination or "Trip plan" }}</h1>
-  <p>Checked on {{ checked_on }}{% if report.start_date %} · trip starts {{ report.start_date }}{% endif %}
+  <p>{% if check.prepared_by %}Prepared by <strong>{{ check.prepared_by }}</strong> · {% endif %}Checked on {{ checked_on }}{% if report.start_date %} · trip starts {{ report.start_date }}{% endif %}
      {% if is_example %}<br>A five-day plan written by an AI assistant, checked as it came.{% endif %}</p>
 </header>
+{% if check.fixed_text %}
+<article class="card fixed">
+  <h2>🛠 The itinerary, rewritten</h2>
+  <p class="muted small">Rewritten by AI to fix what an earlier check found, then checked again below.</p>
+  <div class="plan" id="fixed-text" dir="auto"></div>
+</article>
+<script type="application/json" id="fixed-data">{{ check.fixed_text | tojson }}</script>
+{% endif %}
 <article class="card report" id="report"></article>
 <div class="actions">
   <a class="button primary" href="/">✅ Check your own itinerary</a>
@@ -29,14 +37,20 @@
   <button type="button" onclick="window.print()">🖨️ Print / PDF</button>
 </div>
 <script type="application/json" id="report-data">{{ report | tojson }}</script>
+<script type="application/json" id="before-data">{{ (check.before or none) | tojson }}</script>
 {% endblock %}
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="/static/report.js?v=3"></script>
+<script src="/static/report.js?v=4"></script>
 <script>
   window.addEventListener("DOMContentLoaded", () => {
     const report = JSON.parse(document.getElementById("report-data").textContent);
-    window.renderReport(report, document.getElementById("report"));
+    const before = JSON.parse(document.getElementById("before-data").textContent);
+    window.renderReport(report, document.getElementById("report"), { before });
+    const fixed = document.getElementById("fixed-data");
+    if (fixed) {
+      document.getElementById("fixed-text").innerHTML = DOMPurify.sanitize(marked.parse(JSON.parse(fixed.textContent)));
+    }
     const fix = document.getElementById("copy-fix");
     if (fix) fix.addEventListener("click", () => window.copyText(report.fix_prompt, fix));
     const link = document.getElementById("copy-link");

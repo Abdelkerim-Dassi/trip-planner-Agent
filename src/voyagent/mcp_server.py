@@ -21,7 +21,7 @@ from datetime import date as _date
 import anyio
 from mcp.server.mcpserver import Context, MCPServer
 
-from voyagent import limits, places, social, storage, travel_info
+from voyagent import limits, places, social, stats, storage, travel_info
 from voyagent.jobs import PHASES, CheckJob, PlanJob
 
 PUBLIC_URL = os.environ.get("VOYAGENT_PUBLIC_URL") or os.environ.get(
@@ -180,6 +180,7 @@ async def check_itinerary(
     if job.status == "error":
         raise RuntimeError(job.error)
     storage.save("reviews", job.id, job.to_dict())
+    stats.hit("mcp_check")
     report = job.report or {}
     return {
         "summary": report.get("summary"),

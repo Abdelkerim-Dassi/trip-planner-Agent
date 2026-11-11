@@ -23,7 +23,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from textwrap import dedent
 
-from voyagent import config, storage
+from voyagent import closed_days, config, storage
 from voyagent.llm import complete, complete_json
 from voyagent.places import verify_place
 from voyagent.plan_text import _DAY_HEADING, Day, split_days
@@ -37,8 +37,9 @@ _OSM_DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 MAX_PLACES = 8
 SNIPPETS_PER_PLACE = 3
 CACHE_TTL_SECONDS = 30 * 24 * 3600
-#: Places with no hours found are retried sooner: pages get updated.
-UNVERIFIED_TTL_SECONDS = 7 * 24 * 3600
+#: "No hours found" is kept for a day only: the answer may have come from a
+#: fallback model on a busy day, and pages get updated.
+UNVERIFIED_TTL_SECONDS = 24 * 3600
 
 
 @dataclass
@@ -262,6 +263,19 @@ def _lookup(checks: list[PlaceCheck], city: str, located: dict | None = None,
     helper model)."""
     pending, from_cache, answered = [], set(), set()
     for check in checks:
+        # The best-known closing days come from a sourced list, so catching
+        # the Louvre on a Tuesday never depends on a search or a model.
+        place = (located or {}).get(check.name)
+        known = closed_days.lookup(check.name, place.country_code if place else "")
+        if known is not None:
+            # Only the exceptions need saying; "closed Tuesdays" is the finding itself.
+            nuance = known.closed if ("," in known.closed or "(" in known.closed) else ""
+            check.hours, check.closed_days = (f"closed {nuance}" if nuance else ""), list(known.days)
+            check.source, check.status = known.source, "ok"
+            if place is not None:
+                check.on_map, check.osm_url, check.lat, check.lon = True, place.osm_url, place.lat, place.lon
+            from_cache.add(check.name)  # nothing to look up or to store
+            continue
         cached = storage.load("hours", _cache_key(check.name, city))
         if cached:
             for key in ("on_map", "osm_url", "lat", "lon", "hours", "closed_days", "source", "status"):

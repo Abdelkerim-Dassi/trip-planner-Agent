@@ -36,7 +36,8 @@ from fastapi.templating import Jinja2Templates
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
-from voyagent import config, content, exports, limits, share_images, social, storage
+from voyagent import closed_days as known_sights
+from voyagent import config, content, exports, limits, share_images, social, stats, storage
 from voyagent.config import MissingConfigError, validate_env
 from voyagent.jobs import LANGUAGES, PHASES, CheckJob, PlanJob
 from voyagent.mcp_server import mcp
@@ -52,6 +53,8 @@ SUPPORT_URL = os.environ.get("VOYAGENT_SUPPORT_URL", "")
 CONTACT_URL = os.environ.get(
     "VOYAGENT_CONTACT_URL", "https://github.com/Abdelkerim-Dassi/trip-planner-Agent/issues"
 )
+#: Set this to a secret word to turn on the usage page at /stats?key=<word>.
+STATS_KEY = os.environ.get("VOYAGENT_STATS_KEY", "")
 MAX_DISCOVER_CITIES = 3
 MAX_CHECK_CHARS = 20000
 #: Finished jobs stay in memory this long; after that they are read from storage.
@@ -138,6 +141,7 @@ def _load(kind: str, jobs: dict, job_id: str) -> dict | None:
         if job.status == "done" and job.id not in _saved:
             storage.save(kind, job.id, data)
             _saved.add(job.id)
+            stats.hit("plan_done" if kind == "plans" else "check_done")
         return data
     return storage.load(kind, job_id)
 
@@ -187,26 +191,77 @@ class CheckRequest(BaseModel):
     start: date | None = Field(None, description="First day of the trip, to match closing days to weekdays")
     halal: bool = False
     destination: str = ""
+    prepared_by: str = Field("", description="A name or agency to show on the report")
+
+
+class FixRequest(BaseModel):
+    text: str = Field(description="The itinerary that was checked, to be rewritten")
+
+
+class FeedbackRequest(BaseModel):
+    vote: str = Field(description="'up' or 'down'")
+
+
+def _new_check(job: CheckJob) -> dict:
+    with _jobs_lock:
+        _prune(_checks)
+        active = sum(j.status in ("queued", "running") for j in _checks.values())
+        if active >= MAX_ACTIVE_CHECKS:
+            raise HTTPException(429, "ReelTrip is checking other trips right now. Please try again in a minute.")
+        _checks[job.id] = job
+    return job.start().to_dict()
+
+
+def _itinerary_text(text: str) -> str:
+    text = text.strip()
+    if len(text) < 40:
+        raise HTTPException(422, "Paste the itinerary itself: the day-by-day plan with its places.")
+    if len(text) > MAX_CHECK_CHARS:
+        raise HTTPException(422, f"That's too long to check at once (limit {MAX_CHECK_CHARS:,} characters).")
+    return text
 
 
 @app.post("/api/checks", status_code=202)
 def start_check(req: CheckRequest, request: Request) -> dict:
     """Check an itinerary against the map and published opening days."""
     _require_config()
-    text = req.text.strip()
-    if len(text) < 40:
-        raise HTTPException(422, "Paste the itinerary itself: the day-by-day plan with its places.")
-    if len(text) > MAX_CHECK_CHARS:
-        raise HTTPException(422, f"That's too long to check at once (limit {MAX_CHECK_CHARS:,} characters).")
+    text = _itinerary_text(req.text)
     _limit("check", request, limits.CHECKS_PER_IP)
-    with _jobs_lock:
-        _prune(_checks)
-        active = sum(j.status in ("queued", "running") for j in _checks.values())
-        if active >= MAX_ACTIVE_CHECKS:
-            raise HTTPException(429, "ReelTrip is checking other trips right now. Please try again in a minute.")
-        job = CheckJob(text, req.start, req.halal, req.destination.strip()[:80])
-        _checks[job.id] = job
-    return job.start().to_dict()
+    stats.hit("check_started")
+    return _new_check(CheckJob(
+        text, req.start, req.halal, req.destination.strip()[:80],
+        prepared_by=" ".join(req.prepared_by.split())[:60],
+    ))
+
+
+@app.post("/api/checks/{job_id}/fix", status_code=202)
+def start_fix(job_id: str, req: FixRequest, request: Request) -> dict:
+    """Rewrite a checked itinerary so its problems are fixed, then check the result."""
+    _require_config()
+    data = _finished_check(job_id)
+    report = data["report"]
+    if not report.get("fix_prompt"):
+        raise HTTPException(422, "This itinerary has nothing to fix.")
+    text = _itinerary_text(req.text)
+    _limit("check", request, limits.CHECKS_PER_IP)
+    try:
+        start = date.fromisoformat(report.get("start_date") or "")
+    except ValueError:
+        start = None
+    stats.hit("fix_started")
+    return _new_check(CheckJob(
+        text, start, bool(report.get("halal")), str(report.get("destination") or "")[:80],
+        prepared_by=str(data.get("prepared_by") or ""), fix_of=report,
+    ))
+
+
+@app.post("/api/feedback")
+def feedback(req: FeedbackRequest) -> dict:
+    """A thumbs up or down on a report. Only the count is kept."""
+    if req.vote not in ("up", "down"):
+        raise HTTPException(422, "vote must be 'up' or 'down'")
+    stats.hit(f"feedback_{req.vote}")
+    return {"ok": True}
 
 
 @app.get("/api/checks/{job_id}")
@@ -222,6 +277,7 @@ def discover(req: DiscoverRequest, request: Request) -> dict:
     """TikTok-inspired, OpenStreetMap-verified spots (runs in a worker thread)."""
     _require_config()
     _limit("discover", request, limits.DISCOVERS_PER_IP)
+    stats.hit("discover")
     destinations = [d.strip() for d in req.destinations.split(",") if d.strip()]
     results = [
         social.trending_spots(d, req.month, req.interests).to_dict()
@@ -245,6 +301,7 @@ def start_plan(req: PlanRequest, request: Request) -> dict:
     if not req.cities.strip():
         raise HTTPException(422, "Please say where you're going.")
     _limit("plan", request, limits.PLANS_PER_IP)
+    stats.hit("plan_started")
     with _jobs_lock:
         _prune(_plans)
         active = sum(j.status in ("queued", "running") for j in _plans.values())
@@ -310,9 +367,33 @@ def _page(request: Request, name: str, **context) -> HTMLResponse:
     )
 
 
+#: /check/<key>: the home page, worded for the assistant that wrote the plan.
+ASSISTANTS = {
+    "chatgpt": "ChatGPT",
+    "gemini": "Gemini",
+    "claude": "Claude",
+    "copilot": "Copilot",
+    "perplexity": "Perplexity",
+}
+
+
 @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def index(request: Request):
-    return _page(request, "index.html", phases=[f"{i} {label}" for i, label in PHASES])
+    if request.method == "GET":
+        stats.hit("visit")
+    return _page(request, "index.html", phases=[f"{i} {label}" for i, label in PHASES], assistant="")
+
+
+@app.get("/check/{assistant}", response_class=HTMLResponse)
+def index_for_assistant(request: Request, assistant: str):
+    name = ASSISTANTS.get(assistant.lower())
+    if name is None:
+        raise HTTPException(404, "Not found.")
+    stats.hit("visit")
+    return _page(
+        request, "index.html", phases=[f"{i} {label}" for i, label in PHASES],
+        assistant=name, assistant_key=assistant.lower(),
+    )
 
 
 @app.get("/privacy", response_class=HTMLResponse)
@@ -320,12 +401,27 @@ def privacy(request: Request):
     return _page(request, "privacy.html")
 
 
+@app.get("/closed-days", response_class=HTMLResponse)
+def closed_days(request: Request):
+    return _page(
+        request, "closed_days.html", places=known_sights.SIGHTS, checked_on=known_sights.CHECKED_ON
+    )
+
+
+@app.get("/stats", response_class=HTMLResponse)
+def usage(request: Request, key: str = ""):
+    # Hidden unless the operator set a key, and wrong keys look like a missing page.
+    if not STATS_KEY or key != STATS_KEY:
+        raise HTTPException(404, "Not found.")
+    return _page(request, "stats.html", stats=stats.read())
+
+
 @app.get("/robots.txt", response_class=PlainTextResponse)
 def robots(request: Request) -> str:
     # Reports and plans are shared by link; they are not for search engines.
     return (
-        "User-agent: *\nAllow: /$\nAllow: /c/example\nAllow: /privacy\n"
-        "Disallow: /p/\nDisallow: /c/\nDisallow: /api/\nDisallow: /mcp\n"
+        "User-agent: *\nAllow: /$\nAllow: /check/\nAllow: /c/example\nAllow: /closed-days\nAllow: /privacy\n"
+        "Disallow: /p/\nDisallow: /c/\nDisallow: /api/\nDisallow: /mcp\nDisallow: /stats\n"
         f"Sitemap: {_public_url(request)}/sitemap.xml\n"
     )
 
@@ -333,7 +429,7 @@ def robots(request: Request) -> str:
 @app.get("/sitemap.xml")
 def sitemap(request: Request) -> Response:
     base = _public_url(request)
-    urls = "".join(f"<url><loc>{base}{path}</loc></url>" for path in ("/", "/c/example", "/privacy"))
+    urls = "".join(f"<url><loc>{base}{path}</loc></url>" for path in ("/", *(f"/check/{key}" for key in ASSISTANTS), "/c/example", "/closed-days", "/privacy"))
     return Response(
         f'<?xml version="1.0" encoding="UTF-8"?>'
         f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>',
@@ -362,6 +458,7 @@ def _finished_check(job_id: str) -> dict:
 @app.get("/c/{job_id}", response_class=HTMLResponse)
 def shared_check(request: Request, job_id: str):
     data = _finished_check(job_id)
+    stats.hit("report_view")
     return _page(
         request,
         "check.html",
@@ -375,7 +472,9 @@ def shared_check(request: Request, job_id: str):
 @app.get("/c/{job_id}/og.png")
 def check_og_image(job_id: str) -> Response:
     return Response(
-        share_images.report_card(_finished_check(job_id)["report"]),
+        share_images.report_card(
+            _finished_check(job_id)["report"], _finished_check(job_id).get("prepared_by", "")
+        ),
         media_type="image/png",
         headers=_IMAGE_HEADERS,
     )
@@ -399,7 +498,9 @@ def _slides(job_id: str) -> tuple[bytes, ...]:
 
 @app.get("/p/{job_id}", response_class=HTMLResponse)
 def shared_plan(request: Request, job_id: str):
-    return _page(request, "plan.html", plan=_finished(job_id))
+    plan = _finished(job_id)
+    stats.hit("plan_view")
+    return _page(request, "plan.html", plan=plan)
 
 
 @app.get("/p/{job_id}/og.png")

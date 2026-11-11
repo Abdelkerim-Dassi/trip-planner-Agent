@@ -2,11 +2,11 @@
  "id": "example",
  "kind": "check",
  "status": "done",
- "done": 20,
- "total": 20,
+ "done": 19,
+ "total": 19,
  "label": "",
  "report": {
-  "destination": "Tunis, Tunisia",
+  "destination": "Tunisia",
   "start_date": "2026-12-14",
   "halal": true,
   "days": [
@@ -14,31 +14,46 @@
     "number": 1,
     "city": "Tunis",
     "date": "2026-12-14",
-    "weekday": "Monday"
+    "weekday": "Monday",
+    "drive_km": null,
+    "drive_minutes": null,
+    "holiday": ""
    },
    {
     "number": 2,
     "city": "Carthage",
     "date": "2026-12-15",
-    "weekday": "Tuesday"
+    "weekday": "Tuesday",
+    "drive_km": null,
+    "drive_minutes": null,
+    "holiday": ""
    },
    {
     "number": 3,
     "city": "Kairouan",
     "date": "2026-12-16",
-    "weekday": "Wednesday"
+    "weekday": "Wednesday",
+    "drive_km": 168,
+    "drive_minutes": 133,
+    "holiday": ""
    },
    {
     "number": 4,
     "city": "Dougga",
     "date": "2026-12-17",
-    "weekday": "Thursday"
+    "weekday": "Thursday",
+    "drive_km": null,
+    "drive_minutes": null,
+    "holiday": "Revolution Day"
    },
    {
     "number": 5,
     "city": "Tunis",
     "date": "2026-12-18",
-    "weekday": "Friday"
+    "weekday": "Friday",
+    "drive_km": null,
+    "drive_minutes": null,
+    "holiday": ""
    }
   ],
   "stops": [
@@ -58,7 +73,7 @@
     "closed_days": [],
     "hours_source": "",
     "hours_status": "",
-    "local_name": "Médina de Tunis",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -73,11 +88,11 @@
     "osm_url": "https://www.openstreetmap.org/relation/1552764",
     "where": "Tunis",
     "distance_km": 1,
-    "hours": "8am-2pm Saturday-Thursday, 8am-noon on Friday",
+    "hours": "",
     "closed_days": [],
-    "hours_source": "https://carthagemagazine.com/the-great-mosque-of-ez-zitouna/",
-    "hours_status": "ok",
-    "local_name": "Mosquée Zitouna",
+    "hours_source": "",
+    "hours_status": "unverified",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -111,13 +126,13 @@
     "osm_url": "https://www.openstreetmap.org/relation/2401476",
     "where": "Tunis",
     "distance_km": 5,
-    "hours": "winter 09:30–16:30, summer 09:00–17:00",
+    "hours": "",
     "closed_days": [
      "Monday"
     ],
-    "hours_source": "https://departly.co.uk/to/tunisia/bardo-museum/",
+    "hours_source": "https://patrimoinedetunisie.com.tn/en/museums/the-national-bardo-museum",
     "hours_status": "ok",
-    "local_name": "Musée national du Bardo",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -151,11 +166,11 @@
     "osm_url": "https://www.openstreetmap.org/way/26335647",
     "where": "Tunis",
     "distance_km": 0,
-    "hours": "Summer: 8:00 AM–6:00 PM, Winter: 8:30 AM–5:00 PM",
+    "hours": "",
     "closed_days": [],
-    "hours_source": "https://us.trip.com/travel-guide/attraction/carthage/baths-of-antoninus-23492942/",
-    "hours_status": "ok",
-    "local_name": "Thermes d'Antonin",
+    "hours_source": "",
+    "hours_status": "unverified",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -170,11 +185,11 @@
     "osm_url": "https://www.openstreetmap.org/node/288347882",
     "where": "Tunis",
     "distance_km": 1,
-    "hours": "Winter timing: 08:30 - 17:00, Summer timing: 08:00 - 18:00, ",
+    "hours": "",
     "closed_days": [],
-    "hours_source": "https://www.patrimoinedetunisie.com.tn/en/museums/the-carthage-museum/overview/",
-    "hours_status": "ok",
-    "local_name": "Musée national de Carthage",
+    "hours_source": "",
+    "hours_status": "unverified",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -212,7 +227,7 @@
     "closed_days": [],
     "hours_source": "",
     "hours_status": "",
-    "local_name": "Sidi Bou Saïd",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -265,11 +280,11 @@
     "osm_url": "https://www.openstreetmap.org/relation/1369784",
     "where": "Kairouan",
     "distance_km": 1,
-    "hours": "08:00-14:00 (Saturday-Thursday), 08:00-12:00 (Friday)",
+    "hours": "08:00-14:00 (Sat-Thu), 08:00-12:00 (Fri)",
     "closed_days": [],
     "hours_source": "https://www.atlasobscura.com/places/great-mosque-of-kairouan",
     "hours_status": "ok",
-    "local_name": "Grande Mosquée de Kairouan",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -307,7 +322,7 @@
     "closed_days": [],
     "hours_source": "",
     "hours_status": "",
-    "local_name": "Mausolée de Sidi Sahbi",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -345,7 +360,7 @@
     "closed_days": [],
     "hours_source": "",
     "hours_status": "unverified",
-    "local_name": "Amphithéâtre d'El Jem",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -364,26 +379,7 @@
     "closed_days": [],
     "hours_source": "",
     "hours_status": "",
-    "local_name": "Médina de Sousse",
-    "moved_from": null
-   },
-   {
-    "day": 4,
-    "name": "Roman ruins of Dougga",
-    "kind": "sight",
-    "city": "Dougga",
-    "status": "found",
-    "web_source": "",
-    "lat": 36.4134778,
-    "lon": 9.1789433,
-    "osm_url": "https://www.openstreetmap.org/way/1394183723",
-    "where": "Béja",
-    "distance_km": null,
-    "hours": "Winter: 08:30-17:30, Summer: 08:00-19:00, Ramadan: 08:00-17:",
-    "closed_days": [],
-    "hours_source": "https://unusualnomad.com/dougga-tunisia-travel-guide-roman-ruins-in-north-africa/",
-    "hours_status": "ok",
-    "local_name": "Dougga",
+    "local_name": "",
     "moved_from": null
    },
    {
@@ -430,10 +426,10 @@
     "level": "problem",
     "kind": "closed",
     "title": "Bardo National Museum is closed on Mondays",
-    "detail": "The plan puts it on Day 1, a Monday. Usual hours: winter 09:30–16:30, summer 09:00–17:00. Move it to another day.",
+    "detail": "The plan puts it on Day 1, a Monday. Move it to another day.",
     "day": 1,
     "stop": "Bardo National Museum",
-    "source": "https://departly.co.uk/to/tunisia/bardo-museum/"
+    "source": "https://patrimoinedetunisie.com.tn/en/museums/the-national-bardo-museum"
    },
    {
     "level": "problem",
@@ -465,8 +461,8 @@
    {
     "level": "warning",
     "kind": "long_day",
-    "title": "Day 3 covers about 130 km between stops",
-    "detail": "Great Mosque of Kairouan → El Jem Amphitheatre → Sousse Medina. That is the straight-line distance; roads are longer, so most of this day is spent travelling.",
+    "title": "Day 3 is about 2 h 13 min of driving",
+    "detail": "Great Mosque of Kairouan → El Jem Amphitheatre → Sousse Medina: about 168 km by road, before any return trip, stops or traffic. Drop a stop or split the day.",
     "day": 3,
     "stop": "",
     "source": ""
@@ -482,6 +478,15 @@
    },
    {
     "level": "note",
+    "kind": "holiday",
+    "title": "Day 4 is a public holiday: Revolution Day",
+    "detail": "Museums, shops and public transport often close or keep reduced hours. Check each sight's opening times for that date.",
+    "day": 4,
+    "stop": "",
+    "source": ""
+   },
+   {
+    "level": "note",
     "kind": "friday",
     "title": "Day 5 is a Friday",
     "detail": "Keep about 12:00 to 14:00 free for the Friday prayer, and expect some shops and sites to pause around it.",
@@ -491,21 +496,24 @@
    }
   ],
   "summary": {
-   "places": 20,
-   "confirmed": 15,
+   "places": 19,
+   "confirmed": 14,
    "far": 2,
    "online_only": 2,
    "not_found": 1,
    "no_trace": 1,
-   "sights": 11,
-   "hours_checked": 6,
+   "sights": 10,
+   "hours_checked": 2,
    "problems": 3,
    "warnings": 2,
-   "notes": 2
+   "notes": 3
   },
-  "fix_prompt": "An independent check of this itinerary against OpenStreetMap and published opening hours found these problems. Please fix them and keep everything else the same:\n\n1. Bardo National Museum is closed on Mondays. The plan puts it on Day 1, a Monday. Usual hours: winter 09:30–16:30, summer 09:00–17:00. Move it to another day.\n2. No trace of Crystal Lagoon Viewpoint. It is not on the map near Carthage and a web search for the exact name found nothing. AI planners do invent places: confirm it exists before Day 2 depends on it.\n3. Dar Zarrouk is about 135 km from Kairouan. The map puts it in Tunis. A meal or a bed that far away usually means the plan named the wrong place.\n4. El Jem Amphitheatre is about 69 km from Kairouan. The map puts it in Mahdia. Either the plan means a different place, or this is a long detour for Day 3.\n5. Day 3 covers about 130 km between stops. Great Mosque of Kairouan → El Jem Amphitheatre → Sousse Medina. That is the straight-line distance; roads are longer, so most of this day is spent travelling.\n\nFor each restaurant or hotel you keep, give its exact address so I can verify it.",
+  "fix_prompt": "An independent check of this itinerary against OpenStreetMap and published opening hours found these problems. Please fix them and keep everything else the same:\n\n1. Bardo National Museum is closed on Mondays. The plan puts it on Day 1, a Monday. Move it to another day.\n2. No trace of Crystal Lagoon Viewpoint. It is not on the map near Carthage and a web search for the exact name found nothing. AI planners do invent places: confirm it exists before Day 2 depends on it.\n3. Dar Zarrouk is about 135 km from Kairouan. The map puts it in Tunis. A meal or a bed that far away usually means the plan named the wrong place.\n4. El Jem Amphitheatre is about 69 km from Kairouan. The map puts it in Mahdia. Either the plan means a different place, or this is a long detour for Day 3.\n5. Day 3 is about 2 h 13 min of driving. Great Mosque of Kairouan → El Jem Amphitheatre → Sousse Medina: about 168 km by road, before any return trip, stops or traffic. Drop a stop or split the day.\n\nFor each restaurant or hotel you keep, give its exact address so I can verify it.",
   "notes": []
  },
  "error": "",
- "created": 1794352387.1408453
+ "created": 1794355916.1198206,
+ "prepared_by": "",
+ "fixed_text": "",
+ "before": null
 }

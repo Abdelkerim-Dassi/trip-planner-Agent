@@ -10,11 +10,20 @@ How to get ReelTrip its first users and its first paying clients, with no budget
 
 Be precise about this, in posts and in conversations. Overclaiming is the fastest way to lose a tool whose whole point is honesty.
 
-- **Not new:** "itinerary checker" as a name. At least three free tools use it (TripSapien, SuperTravel, Journey Planner). TripSapien also checks closed days against your dates, from its own catalogue of places, and has an MCP endpoint. None of them shows traction.
+- **Not new:** "itinerary checker" as a name. At least three free tools use it (TripSapien, SuperTravel, Journey Planner). None of them shows traction.
+- **Not unique to us:** free, no login, a map, a share link and an MCP endpoint. TripSapien has all five, plus closed days against your dates, public-holiday context, book-ahead flags and PDF/Doc export, from its own catalogue of 610,000 places.
 - **Not new:** turning TikToks into pins. More than 20 iOS apps do it, mostly for about $50 a year.
-- **New, as a combination:** one report that checks existence (map, then web), the **wrong city**, the **weekly closing day against the scheduled weekday**, **distance covered in a day** and **day load**, with a shareable page and a fix list to paste back into the assistant. The research found no tool that does all of these.
+- **Ours alone, as of November 2026:** an explicit **"this place is in a different city"** finding; **driving time on real roads** next to closing days in the same report (TripSapien has no routing; SuperTravel names no data source and has no map); a **one-click rewrite that is checked again**, with before and after; a **fix list to paste back into ChatGPT**; a named open data source (OpenStreetMap); and the checker and TikTok-to-plan in one free tool.
 - **New:** **Friday prayer and Ramadan flags**, and plans in **French and Arabic** for North Africa and the Middle East. No checker has them.
 - **Different by design:** web, no install, no login, no subscription. The top complaints about the iOS apps are surprise charges and paywalls.
+
+### Three lines to use against the rivals
+
+1. "Checks every place on the open map and tells you which ones aren't where your AI said they were."
+2. "Don't start over: one click fixes the plan, and we check the fix."
+3. "The itinerary check that knows it's Friday, and knows it's Ramadan."
+
+Don't claim better opening-hours coverage than TripSapien or better transit times than SuperTravel: they go further there.
 
 ### Proof points to quote (with sources)
 
@@ -29,9 +38,9 @@ Closing-day traps that are confirmed on official pages and make good demos: Louv
 
 1. Deploy the latest code (push, then Manual Deploy on Render) and open `/healthz`: it should list `fallback_models` and `"plans_persist": true`.
 2. On Render, delete `VOYAGENT_DISCOVERY_MODEL` if it is set to `groq/openai/gpt-oss-120b`, so the fast model is used for the small jobs. Add `TAVILY_API_KEY` if you create a free Tavily account.
-3. Keep the site awake: a free uptime monitor (UptimeRobot, cron-job.org) pinging `https://reeltrip.onrender.com/healthz` every 10 minutes. A first visitor who meets a 70-second loading screen leaves.
+3. Keep the site awake: the repository's scheduled health check (`.github/workflows/health.yml`) requests `/healthz` every 10 minutes once it is on GitHub. Confirm it runs under the repository's Actions tab. A first visitor who meets a 70-second loading screen leaves.
 4. Run three checks yourself on itineraries you know well and read every line of the report. Fix or report anything wrong before strangers see it.
-5. Add free analytics (Cloudflare Web Analytics or GoatCounter: no cookies, no banner) so you can tell which channel works.
+5. Turn on the usage page (`VOYAGENT_STATS_KEY`, see "Watching what works") so you can tell which channel works.
 
 ## 2. The first 100 users (weeks 1 to 3)
 
@@ -96,6 +105,16 @@ Post once a day for three weeks on one platform before adding another. Turn on t
 
 Pitch for the listing: "Check any itinerary you or the assistant wrote: real places, closing days, distances. Halal and Ramadan aware."
 
+### Pages built to be linked
+
+- `/check/chatgpt`, `/check/gemini`, `/check/claude`, `/check/copilot`, `/check/perplexity`: the home page worded for each assistant. Link the matching one under a video or in a reply ("ChatGPT planned your trip. We check it.").
+- `/closed-days`: a sourced list of famous sights and the day they're closed. Useful on its own, easy to cite, and it ends with the checker.
+- `/c/example`: a real report, for people who want to see before they paste.
+
+### Watching what works
+
+Set `VOYAGENT_STATS_KEY` on Render to a long secret word and open `/stats?key=<word>`. It shows daily counts of visits, checks started and finished, fixes, plans, shared-report views and thumbs, with no cookies. The ratios to watch are listed on the page.
+
 ### E. Communities that welcome it
 
 r/SideProject, r/InternetIsBeautiful (free, no sign-up tools qualify), r/mcp, the r/ClaudeAI showcase thread, Show HN (must be usable without sign-up: it is), Peerlist and AlternativeTo. One post each, spaced out, written for that community.
@@ -115,7 +134,7 @@ The research points to one buyer who has the problem every week and already pays
 
 > **ReelTrip Pro for advisors.** Check every itinerary before it goes to a client. Unlimited checks, and a client-ready report page with your name and logo that says "checked on <date>". $9 a month, or $19 for a team of five. Ten checks free.
 
-What exists today: the check and the dated report page. What Pro needs (build it only after three advisors say yes): a logo and name on the report, and a private list of your reports. Until then, do it by hand for the first three clients: send them their report links and ask what is missing.
+What exists today: the check, the one-click fix, and a dated report page that carries the advisor's name ("Travel advisor or creator? Put your name on the report" on the form). That is enough to run a pilot for free. What Pro needs (build it only after three advisors say yes): a logo, a private list of your reports, and a client-facing PDF. Until then, give the first three advisors the free version, watch what they send to clients, and ask what is missing.
 
 ### Where to find them, free
 

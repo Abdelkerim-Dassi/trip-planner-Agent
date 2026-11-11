@@ -68,6 +68,8 @@ def offline(monkeypatch, tmp_path):
     monkeypatch.setattr(hours, "_from_snippets", lambda pending, city, model=None: set())
     monkeypatch.setattr(review, "search", lambda query: [])  # the web knows nothing
     monkeypatch.setattr(review, "ramadan_days", lambda start, end: [])
+    monkeypatch.setattr(review.routes, "drive", lambda points: None)  # straight-line fallback
+    monkeypatch.setattr(review.holidays, "public_holidays", lambda country, year: {})
 
 
 def issue(report, kind):
@@ -217,3 +219,70 @@ def test_geocode_prefers_a_match_near_the_city(monkeypatch, tmp_path):
     assert places.geocode("Nowhere", "tn") is None
     monkeypatch.setattr(places, "_throttled_get", lambda params: hits[:1])
     assert places.geocode("Nowhere", "tn") is not None
+
+
+def test_long_day_uses_road_time_when_routing_answers(offline, monkeypatch):
+    monkeypatch.setattr(review.routes, "drive", lambda points: {"km": 240, "minutes": 200})
+    report = review.run(TEXT, start=date(2026, 12, 15))
+    long_day = issue(report, "long_day")
+    assert [i["day"] for i in long_day] == [2] and "3 h 20 min of driving" in long_day[0]["title"]
+    day2 = next(d for d in report["days"] if d["number"] == 2)
+    assert day2["drive_km"] == 240 and day2["drive_minutes"] == 200
+
+    # A short hop by road is not a long day, whatever the straight line says.
+    monkeypatch.setattr(review.routes, "drive", lambda points: {"km": 60, "minutes": 70})
+    assert not issue(review.run(TEXT, start=date(2026, 12, 15)), "long_day")
+
+
+def test_rewrite_asks_for_fixes_and_refuses_a_stub(offline, monkeypatch):
+    from types import SimpleNamespace
+
+    report = review.run(TEXT, start=date(2026, 12, 14))
+    seen = {}
+
+    def fake_complete(**request):
+        seen["prompt"] = request["messages"][0]["content"]
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=seen["reply"]))])
+
+    monkeypatch.setattr(review, "complete", fake_complete)
+    seen["reply"] = "Day 1: Medina of Tunis. Day 2: Bardo National Museum, Kairouan.\n\nWhat changed\n- moved the Bardo"
+    assert "What changed" in review.rewrite(TEXT, report)
+    assert "Bardo National Museum is closed on Mondays" in seen["prompt"]
+    assert "Day 1: Monday 2026-12-14" in seen["prompt"]
+    seen["reply"] = "Sorry."
+    with pytest.raises(review.ReviewError):
+        review.rewrite(TEXT, report)
+
+
+def test_public_holiday_and_book_ahead_notes(offline, monkeypatch):
+    monkeypatch.setattr(review.holidays, "public_holidays",
+                        lambda country, year: {"2026-12-17": "Revolution Day"} if country == "tn" else {})
+    data = {**EXTRACTED, "days": [
+        {"day": 1, "city": "Tunis", "stops": [{"name": "Bardo National Museum", "kind": "sight"}]},
+        {"day": 2, "city": "Tunis", "stops": [{"name": "Musée du Louvre", "kind": "sight"}]},
+    ]}
+    monkeypatch.setattr(review, "_extract", lambda text, destination: data)
+    report = review.run(TEXT, start=date(2026, 12, 16))
+    holiday = issue(report, "holiday")
+    assert [i["day"] for i in holiday] == [2] and "Revolution Day" in holiday[0]["title"]
+    assert report["days"][1]["holiday"] == "Revolution Day" and report["days"][0]["holiday"] == ""
+    assert issue(report, "book_ahead")[0]["title"] == "Book ahead: Musée du Louvre"
+
+
+def test_known_closing_days_need_no_search(offline, monkeypatch):
+    from voyagent import closed_days
+
+    assert closed_days.lookup("Musée du Louvre").days == ("Tuesday",)
+    assert closed_days.lookup("Louvre Abu Dhabi").days == ("Monday",)
+    assert closed_days.lookup("Bardo Museum", "tn").days == ("Monday",)
+    assert closed_days.lookup("Bardo Museum", "dz") is None  # Algiers has its own Bardo
+    assert closed_days.lookup("Sheikh Zayed Grand Mosque") is None  # no full-day closure
+    assert closed_days.lookup("Glouvre Cafe") is None
+
+    # The Bardo has no hours on the map here and the web says nothing: still caught.
+    bare = {**ON_MAP, "Bardo National Museum": place("Bardo National Museum", 36.81, 10.13)}
+    monkeypatch.setattr(review, "verify_place", lambda name, near="": bare.get(name))
+    report = review.run(TEXT, start=date(2026, 12, 14))
+    closed = issue(report, "closed")
+    assert [i["stop"] for i in closed] == ["Bardo National Museum"]
+    assert closed[0]["source"].startswith("https://patrimoinedetunisie.com.tn")

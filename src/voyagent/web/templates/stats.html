@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Usage · ReelTrip{% endblock %}
+{% block social_meta %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<header class="hero hero-small">
+  <span class="badge">📈 Usage</span>
+  <h1>Last {{ stats.days | length }} days</h1>
+  <p>Counts only: no cookies, no visitor ids. Days are UTC.</p>
+</header>
+<article class="card plan">
+  {% if not stats.persisted %}
+  <p class="error">Storage isn't configured (Upstash), so these counts reset whenever the server restarts.</p>
+  {% endif %}
+  <table>
+    <thead><tr><th>Event</th><th>Total</th>{% for day in stats.days %}<th>{{ day[5:] }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in stats.rows %}
+      <tr><td><strong>{{ row.label }}</strong></td><td><strong>{{ row.total }}</strong></td>
+        {% for n in row.counts %}<td>{{ n if n else "·" }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted small">What to watch: checks started per visit (does the page convince?), checks finished per
+  check started (does it work?), fixes requested and thumbs (is the report useful?), shared report views (does it spread?).</p>
+</article>
+{% endblock %}

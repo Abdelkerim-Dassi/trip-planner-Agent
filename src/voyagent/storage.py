@@ -122,6 +122,18 @@ def incr(key: str, ttl_seconds: int, amount: int = 1) -> int | None:
     return value
 
 
+def count(key: str) -> int | None:
+    """The current value of the shared counter ``key``; ``None`` when Upstash
+    isn't configured, the call fails, or the counter doesn't exist."""
+    if not _COUNTER_KEY.match(key):
+        raise ValueError(f"Invalid counter key: {key}")
+    value = _redis("GET", f"reeltrip:count:{key}")
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def is_remote() -> bool:
     """Whether records survive a restart (Upstash configured)."""
     return _remote() is not None

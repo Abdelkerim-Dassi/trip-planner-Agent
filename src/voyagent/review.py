@@ -26,8 +26,8 @@ from datetime import date, timedelta
 from textwrap import dedent
 from typing import Callable
 
-from voyagent import config, hours, storage
-from voyagent.llm import complete_json
+from voyagent import config, holidays, hours, routes, storage
+from voyagent.llm import complete, complete_json
 from voyagent.places import NEAR_KM, Place, distance_km, geocode, verify_place
 from voyagent.plan_text import split_days
 from voyagent.serper import SearchError, search
@@ -46,8 +46,13 @@ MAX_HOURS_LOOKUPS = 8
 MAX_WEB_LOOKUPS = 5
 #: A place this far from the day's town is a detour or the wrong place.
 FAR_KM = NEAR_KM
-#: Straight-line kilometres between a day's stops before the day is "long".
+#: Straight-line kilometres between a day's stops before the day is "long"
+#: (used when the routing server can't give a driving time).
 LONG_DAY_KM = 120
+#: Days whose stops are at least this far apart get a real driving time.
+ROUTE_FROM_KM = 30
+#: Minutes of driving in one day before the day is "long".
+LONG_DRIVE_MINUTES = 120
 #: Sights in one day before the day is "packed".
 PACKED_SIGHTS = 6
 
@@ -64,6 +69,18 @@ _RAMADAN_COUNTRIES = {
 _NOT_FOOD = {"highway", "boundary", "place", "natural", "waterway", "landuse", "railway", "office"}
 _FOOD_SHOPS = {"bakery", "pastry", "confectionery", "coffee", "tea", "deli", "ice_cream"}
 _NOT_SIGHT = {"shop", "office", "craft"}
+
+# Sights known for timed tickets that sell out: a visit planned without a
+# booking often doesn't happen. Matched on accent-free lower-case names. Kept
+# short on purpose: only places where "book ahead" is long-standing advice.
+_BOOK_AHEAD = (
+    "alhambra", "nasrid", "sagrada familia", "park guell", "casa batllo", "last supper",
+    "cenacolo", "santa maria delle grazie", "anne frank", "vatican museums", "sistine chapel",
+    "colosseum", "colosseo", "uffizi", "accademia gallery", "galleria dell accademia",
+    "eiffel tower", "tour eiffel", "louvre", "neuschwanstein", "machu picchu", "burj khalifa",
+    "ghibli museum", "teamlab", "statue of liberty", "jardin majorelle", "majorelle garden",
+    "van gogh museum", "borghese",
+)
 
 # Progress callback: (done, total, label of the place being checked).
 Progress = Callable[[int, int, str], None]
@@ -295,8 +312,9 @@ def _check_hours(stops: list[Stop], located: dict[str, Place], destination: str)
         by_city.setdefault(stop.city or destination, []).append(check)
     for city, checks in by_city.items():
         try:
-            # The fast model: a traveller is watching the progress bar.
-            hours._lookup(checks, city, located, config.discovery_model())
+            # The main model: closing days are the finding people act on,
+            # and the small fast model reads fewer of them out of the snippets.
+            hours._lookup(checks, city, located, config.litellm_model())
         except Exception as exc:  # hours are a bonus; the map check still stands
             log.warning("Hours lookup failed for %s: %s", city, exc)
     for stop in stops:
@@ -402,10 +420,21 @@ def _issues(days: list[dict], stops: list[Stop], start: date | None, halal: bool
         total = sum(
             distance_km(a, b) for a, b in zip(path, path[1:])  # type: ignore[arg-type]
         )
-        if total >= LONG_DAY_KM:
+        road = routes.drive([(s.lat, s.lon) for s in path]) if total >= ROUTE_FROM_KM else None
+        day["drive_km"] = road["km"] if road else None
+        day["drive_minutes"] = road["minutes"] if road else None
+        route = " → ".join(s.name for s in path)
+        if road and road["minutes"] >= LONG_DRIVE_MINUTES:
+            found.append(Issue(
+                "warning", "long_day",
+                f"Day {day['number']} is about {routes.hours_minutes(road['minutes'])} of driving",
+                f"{route}: about {road['km']} km by road, before any return trip, stops or traffic. "
+                "Drop a stop or split the day.", day["number"],
+            ))
+        elif not road and total >= LONG_DAY_KM:
             found.append(Issue(
                 "warning", "long_day", f"Day {day['number']} covers about {round(total)} km between stops",
-                " → ".join(s.name for s in path) + ". That is the straight-line distance; roads are "
+                f"{route}. That is the straight-line distance; roads are "
                 "longer, so most of this day is spent travelling.", day["number"],
             ))
         sights = [s for s in stops if s.day == day["number"] and s.kind == "sight"]
@@ -415,6 +444,30 @@ def _issues(days: list[dict], stops: list[Stop], start: date | None, halal: bool
                 "Three or four is what fits in a day once travel, queues and meals are counted.",
                 day["number"],
             ))
+
+    # Tickets that sell out, and public holidays.
+    book = list(dict.fromkeys(
+        s.name for s in stops
+        if s.kind == "sight" and any(key in _fold(f"{s.name} {s.local_name}") for key in _BOOK_AHEAD)
+    ))
+    if book:
+        found.append(Issue(
+            "note", "book_ahead", f"Book ahead: {_join(book)}",
+            f"{'These usually need' if len(book) > 1 else 'This usually needs'} a timed ticket bought in "
+            "advance, and popular slots sell out days or weeks before. Buy on the official site before "
+            "you fix the rest of the day around it.",
+        ))
+    if start and country:
+        for day in days:
+            when = day.get("date") or ""
+            name = holidays.public_holidays(country, int(when[:4])).get(when) if when else None
+            day["holiday"] = name or ""
+            if name:
+                found.append(Issue(
+                    "note", "holiday", f"Day {day['number']} is a public holiday: {name}",
+                    "Museums, shops and public transport often close or keep reduced hours. Check each "
+                    "sight's opening times for that date.", day["number"],
+                ))
 
     # Fridays and Ramadan.
     for day in days:
@@ -555,8 +608,10 @@ def _run(text: str, start: date | None, halal: bool, destination: str,
                 continue
             if stop.kind == "sight" and stop.name not in located and sights < MAX_HOURS_LOOKUPS:
                 sights += 1
-                if hours.osm_closed_days(place.opening_hours) is None and not storage.load(
-                    "hours", hours._cache_key(stop.name, city)
+                if (
+                    hours.closed_days.lookup(stop.name, place.country_code) is None
+                    and hours.osm_closed_days(place.opening_hours) is None
+                    and not storage.load("hours", hours._cache_key(stop.name, city))
                 ):
                     pool.submit(_warm, hours.hours_query(stop.name, city))
             located[stop.name] = place
@@ -629,6 +684,75 @@ def check_plan(plan: str, city: str, travel_dates: str, halal: bool = False,
     except Exception as exc:  # the check is a bonus, never a failure point
         log.warning("Plan check failed: %s", exc)
         return plan, None
+
+
+def rewrite(text: str, report: dict) -> str:
+    """Rewrite an itinerary so the problems a check found are fixed.
+
+    One model call. The result is not trusted: the caller checks it again,
+    and the second report says what is still wrong.
+    """
+    findings = "\n".join(
+        f"- {i['title']}. {i['detail']}" for i in report.get("issues", []) if i["level"] != "note"
+    )
+    days = report.get("days") or []
+    calendar = "\n".join(
+        f"Day {d['number']}: {d['weekday']} {d['date']}" for d in days if d.get("weekday")
+    )
+    closing = "\n".join(
+        f"- {s['name']}: closed {', '.join(s['closed_days'])}"
+        for s in report.get("stops", []) if s.get("closed_days")
+    )
+    prompt = dedent(
+        f"""
+        Below is a trip itinerary and the problems an independent check found in
+        it. Rewrite the itinerary so every problem is fixed.
+
+        How to fix each kind of problem:
+        - A visit on a day the place is closed: move it to a day of this trip
+          when it is open, swapping it with something from that day.
+        - A sight with no trace: remove it, or replace it with a major sight
+          of that town that you are certain exists.
+        - A restaurant, café or hotel with no trace, or far from the town its
+          day is set in: do NOT name another business. Write the meal or night
+          generically instead ("lunch in the medina of Kairouan, near the
+          Great Mosque"), so the traveller picks a place on the day.
+        - Never invent a name.
+        - A day with too much driving or too many sights: drop or move stops so
+          the day fits, and say which.
+        Keep the same number of days, the same "Day N" headings, the same
+        language as the itinerary, the traveller's interests, and every part
+        that had no problem. Do not add new problems: keep closed days in mind
+        for everything you move.
+
+        {"Trip calendar:" if calendar else ""}
+        {calendar}
+        {"Known closing days:" if closing else ""}
+        {closing}
+
+        Problems found:
+        {findings}
+
+        Write the corrected itinerary only, then a last section headed
+        "What changed" with one short bullet per change.
+
+        Itinerary:
+        {text[:MAX_TEXT_CHARS]}
+        """
+    ).strip()
+    response = complete(
+        model=config.litellm_model(),
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+        max_tokens=4000,
+        num_retries=2,
+    )
+    fixed = (response.choices[0].message.content or "").strip()
+    fixed = re.sub(r"^```(?:markdown)?\s*|\s*```$", "", fixed)
+    fixed = fixed.translate({0x202F: " ", 0x00A0: " ", 0x2007: " ", 0x2011: "-"})
+    if len(fixed) < 0.4 * len(text):
+        raise ReviewError("The rewrite came back incomplete. Please try again in a minute.")
+    return fixed
 
 
 def legacy_checks(report: dict | None) -> list[dict]:

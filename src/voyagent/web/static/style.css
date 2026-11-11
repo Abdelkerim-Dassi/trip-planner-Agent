@@ -220,3 +220,19 @@ button.link { border: none; background: none; padding: 0; color: var(--pink); te
 .stops { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
 .stops li { padding: .4rem .6rem; border: 1px solid var(--line); border-radius: 10px; background: #fffdfc; }
 .stop-name { font-weight: 500; margin-right: .3rem; }
+
+/* Fix, maps links, feedback */
+button.primary { color: #fff; background: var(--sunset); border-color: transparent; font-weight: 600; }
+details.more { margin: 0 0 .9rem; font-size: .9rem; }
+details.more summary { cursor: pointer; color: var(--muted); }
+details.more label { margin-top: .6rem; }
+.fixed { border-top-left-radius: 0; border-top-right-radius: 0; background: #fbfffd; border-color: #bfe9d6; }
+.fixed .plan { max-height: 26rem; overflow-y: auto; padding: .2rem .9rem; margin: .6rem 0; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.fixed + .report { border-radius: var(--radius) !important; }
+.before-after { margin: 0 0 .6rem; font-size: .95rem; }
+.before-after s { color: var(--muted); }
+a.maps { font-size: .76rem; white-space: nowrap; font-weight: 400; }
+.day-block h3 a.maps { margin-left: auto; }
+.feedback { margin-top: .8rem; color: var(--muted); }
+.feedback button { padding: .25rem .7rem; font-size: .82rem; margin-left: .3rem; }
+@media print { .feedback, a.maps { display: none !important; } }

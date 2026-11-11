@@ -9,9 +9,10 @@ Paste any itinerary (from ChatGPT, Gemini, a blog, or your own notes) and ReelTr
 - **Looks up each named place on OpenStreetMap**, near the town that day is set in. A place with no trace on the map or the web is flagged as possibly invented.
 - **Catches the wrong city.** A lunch "in Kairouan" that is really 135 km away, in Sidi Bou Said, is a problem; a sight that far is a long detour.
 - **Matches sights to their weekly closing day** (OpenStreetMap's `opening_hours`, or published hours found by search, with the source) and flags a visit on a closed weekday.
-- **Measures the day.** Days that cover too much distance or list too many sights are called out.
-- **Flags Friday prayer and Ramadan** when asked.
-- Gives a **shareable report page** with a map, a link preview, and a **fix list to paste back into the assistant** that wrote the plan.
+- **Measures the day on real roads.** Driving time between a day's stops comes from OSRM routing, and days with more than two hours of road, or too many sights, are called out.
+- **Knows the calendar.** Public holidays on your dates, sights that need tickets booked ahead, and, when asked, Friday prayer and Ramadan.
+- **Fixes it in one click.** The plan is rewritten around the findings and the rewrite is checked again, so you see before and after ("3 problems → 0"). Or copy a **fix list to paste back into the assistant** that wrote the plan.
+- Gives a **shareable report page** with a map, Google Maps links for each stop and each day's route, a link preview, and an optional "prepared by" name for travel advisors.
 
 It reports in counts ("17 of 20 places found on the map, opening days checked for 6 of 11 sights"), never "everything verified". See a real report: [reeltrip.onrender.com/c/example](https://reeltrip.onrender.com/c/example).
 
@@ -30,8 +31,11 @@ Free to run: Groq's and Gemini's free LLM tiers, Serper's free search tier (opti
 | Is the place on the map near that day's town? | OpenStreetMap Nominatim, preferring matches in and around the town | found, far, or not on the map |
 | If not on the map: does the web know it? | one exact-name web search | "online only" (probably real) or "no trace" (possibly invented) |
 | Is a sight open on the scheduled weekday? | OSM `opening_hours`, else published hours read from search snippets (only when a snippet states them), cached for a month | closed-day conflict, with the source |
-| Does the day fit? | straight-line distance between the day's stops; number of sights | long day, packed day |
+| Does the day fit? | driving time and road distance from OSRM (straight-line distance if routing is down); number of sights | long day, packed day |
+| Public holidays, tickets | Nager.Date holidays for the country; a short list of sights known for timed tickets | notes |
 | Friday and Ramadan | computed calendar (AlAdhan's Hijri calendar) | notes |
+
+The best-known closing days (Louvre, Uffizi, Bardo and others) come from a sourced list in `closed_days.py`, so those are caught without a search; the same list is published at `/closed-days`.
 
 A place of the same name but the wrong kind (a "Dar Zarrouk" that is a wine shop when the plan means a restaurant) is not accepted as a match. The pasted text is not stored; only the report is.
 
@@ -60,6 +64,10 @@ A seven-agent [CrewAI](https://www.crewai.com/) crew (`crew.py`, `agents.py`, `t
 ├── src/voyagent/
 │   ├── review.py             # The itinerary check: map, wrong city, closing days, day load
 │   ├── hours.py              # Weekly closing days from OSM or published hours
+│   ├── closed_days.py        # Sourced closing days of famous sights (check + /closed-days page)
+│   ├── routes.py             # Driving time between a day's stops (OSRM)
+│   ├── holidays.py           # Public holidays (Nager.Date)
+│   ├── stats.py              # Usage counts without a tracker (/stats)
 │   ├── places.py             # OpenStreetMap place lookup (city-aware, cached)
 │   ├── quick_plan.py         # One grounded call that writes a plan (free tiers)
 │   ├── social.py             # TikTok discovery: captions -> places on the map
@@ -118,7 +126,7 @@ With `TAVILY_API_KEY` set, searches that don't need Google's TikTok index go to 
 python -m voyagent.web            # http://127.0.0.1:8000
 ```
 
-- **Check an itinerary:** paste a plan, add the first day of the trip (needed to match closing days to weekdays), and read the report. Finished reports live at `/c/<id>`.
+- **Check an itinerary:** paste a plan, add the first day of the trip (needed to match closing days to weekdays), and read the report. **Fix it for me** rewrites the plan and checks the rewrite. Finished reports live at `/c/<id>`. `/check/chatgpt`, `/check/gemini`, `/check/claude`, `/check/copilot` and `/check/perplexity` are the same page worded for each assistant.
 - **Plan from TikTok:** fill in where and when. With **Inspired by TikTok** on (or links pasted) ReelTrip first shows the spots travellers love on a map; untick what you'd skip and build the plan. Finished plans live at `/p/<id>`, with a calendar export and a **Post this trip** page.
 
 The JSON API is documented at `/api/docs`.
@@ -165,7 +173,7 @@ Render's free plan runs the `Dockerfile` with no credit card. Without a card on 
 5. **Keep share links working:** create a free Redis database at [upstash.com](https://upstash.com) (no card), open its **REST API** section, and add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. `/healthz` then shows `"plans_persist": true`. The same database keeps the search cache and the daily limits across restarts.
 6. **Deploy.** When the repo is connected by public URL, Render does not deploy on push: after pushing, use **Manual Deploy → Deploy latest commit**.
 
-Free-plan limits: the service sleeps after 15 minutes without traffic and takes about a minute to wake (a free uptime monitor pinging `/healthz` every 10 minutes keeps it awake and fits the 750 free hours); its disk is wiped on every restart, so without Upstash shared links break; and it has 512 MB of memory.
+Free-plan limits: the service sleeps after 15 minutes without traffic and takes about a minute to wake (the scheduled workflow in `.github/workflows/health.yml` requests `/healthz` every 10 minutes, which keeps it awake and fits the 750 free hours); its disk is wiped on every restart, so without Upstash shared links break; and it has 512 MB of memory.
 
 ## Configuration
 
@@ -187,6 +195,8 @@ Set in `.env` or the host's environment.
 | `VOYAGENT_DAILY_MCP_BUDGET` | itinerary checks per day through MCP | `300` |
 | `VOYAGENT_MAX_ACTIVE_PLANS` / `VOYAGENT_MAX_ACTIVE_CHECKS` | jobs allowed at once | `2` / `3` |
 | `VOYAGENT_MCP_PLAN_TRIP` | `1` registers the slow `plan_trip` MCP tool | off |
+| `VOYAGENT_STATS_KEY` | a secret word that turns on the usage page at `/stats?key=<word>` | unset (page hidden) |
+| `VOYAGENT_ROUTING_URL` | OSRM server for driving times (`""` turns routing off) | OSRM's public demo server |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | free Redis for reports, plans, caches and limits | unset (local files only) |
 | `VOYAGENT_PUBLIC_URL` | site address used in link previews and share links | the request's address (Render's is detected) |
 | `VOYAGENT_PUBLIC_HOSTS` | extra hostnames the `/mcp` endpoint accepts | unset |

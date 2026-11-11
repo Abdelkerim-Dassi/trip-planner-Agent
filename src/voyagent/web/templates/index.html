@@ -1,9 +1,19 @@
 {% extends "base.html" %}
+{% block title %}{% if assistant %}Check a {{ assistant }} itinerary: closed days, wrong cities, places that don't exist · ReelTrip{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block description %}{% if assistant %}Paste the trip itinerary {{ assistant }} wrote. ReelTrip looks up each place on the map and flags closed days, wrong cities, long drives and places with no trace, then fixes it in one click. Free, no account.{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block social_meta %}
+{% if assistant %}
+  <meta property="og:url" content="{{ public_url }}/check/{{ assistant_key }}">
+  <meta property="og:image" content="{{ public_url }}/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="{{ public_url }}/check/{{ assistant_key }}">
+{% else %}{{ super() }}{% endif %}
+{% endblock %}
 {% block content %}
 <header class="hero">
   <span class="badge">✅ The reality check for trip plans</span>
   <h1>ReelTrip</h1>
-  <p>Your AI planned your trip. We check it against the real world: each place looked up
+  <p>{{ assistant or "Your AI" }} planned your trip. We check it against the real world: each place looked up
      on the map, with closed days, wrong cities and impossible days flagged. Free, no account.</p>
 </header>
 
@@ -14,7 +24,7 @@
 
 <div id="mode-check">
 <form id="check-form" class="card" autocomplete="off">
-  <label>Paste your itinerary <small>(from ChatGPT, Gemini, a blog, or your own notes)</small>
+  <label>Paste your itinerary <small>({% if assistant %}copy {{ assistant }}'s whole answer{% else %}from ChatGPT, Gemini, a blog, or your own notes{% endif %})</small>
     <textarea name="text" rows="9" maxlength="20000" required
       placeholder="Day 1 – Tunis: Medina, Zitouna Mosque, lunch at Dar El Jeld, Bardo Museum…"></textarea>
   </label>
@@ -27,10 +37,17 @@
       🕌 Also flag Friday prayer and Ramadan
     </label>
   </div>
+  <details class="more">
+    <summary>Travel advisor or creator? Put your name on the report</summary>
+    <label>Your name or agency <small>(optional, shown at the top of the shared report)</small>
+      <input name="prepared_by" maxlength="60" placeholder="Atlas Voyages, Tunis">
+    </label>
+  </details>
   <button type="submit" class="cta" id="check-go">Check my itinerary ✅</button>
   <p class="form-links">
     <button type="button" class="link" id="example">Try with an example</button> ·
-    <a href="/c/example">See an example report</a>
+    <a href="/c/example">See an example report</a> ·
+    <a href="/closed-days">Famous closed-day traps</a>
   </p>
   <p class="error" id="check-error" hidden></p>
 </form>
@@ -43,8 +60,15 @@
 
 <section id="check-result" hidden>
   <div class="result-head">✅ Your itinerary check</div>
+  <article class="card fixed" id="fixed" hidden>
+    <h2>🛠 Your itinerary, rewritten</h2>
+    <p class="muted small">Rewritten by AI to fix what the check found, then checked again below. Read it before you rely on it.</p>
+    <div class="plan" id="fixed-text" dir="auto"></div>
+    <button type="button" id="copy-fixed">📋 Copy this itinerary</button>
+  </article>
   <article class="card report" id="report"></article>
   <div class="actions">
+    <button type="button" id="fix" class="primary" hidden>🛠 Fix it for me</button>
     <button type="button" id="copy-fix" hidden>📋 Copy the fix list for ChatGPT</button>
     <button type="button" id="copy-report">🔗 Copy report link</button>
     <a class="button" id="open-report" href="#">↗ Open report page</a>
@@ -58,7 +82,8 @@
     <li><strong>It exists.</strong> Each named place is looked up on OpenStreetMap. A place with no trace on the map or the web is flagged: AI planners do invent them.</li>
     <li><strong>It's where the plan says.</strong> A restaurant "in Kairouan" that is really 135 km away gets caught.</li>
     <li><strong>It's open that day.</strong> Museums and monuments are matched to their weekly closing day, with the source.</li>
-    <li><strong>The day fits.</strong> Days that cover too much distance or too many sights are called out.</li>
+    <li><strong>The day fits.</strong> Driving time between a day's stops is measured on real roads, and days with too much road or too many sights are called out.</li>
+    <li><strong>Then it fixes it.</strong> One click rewrites the plan around the findings and checks the rewrite, so you see before and after.</li>
     <li><strong>Friday prayer and Ramadan</strong>, if you ask for them.</li>
   </ul>
   <p class="muted small">We say exactly how much was checked, never "everything". Your pasted text is not stored; only the report is.</p>
@@ -159,6 +184,6 @@
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="/static/checks.js?v=3"></script>
-<script src="/static/report.js?v=3"></script>
-<script src="/static/app.js?v=4"></script>
+<script src="/static/report.js?v=4"></script>
+<script src="/static/app.js?v=5"></script>
 {% endblock %}
